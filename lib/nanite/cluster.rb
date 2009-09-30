@@ -186,6 +186,7 @@ module Nanite
           handle_ping(ping)
         rescue Exception => e
           Nanite::Log.error("RECV [ping] #{e.message}")
+          callbacks[:exception].call(e, msg, mapper) rescue nil if callbacks[:exception]
         end
       end
       hb_fanout = amq.fanout('heartbeat', :durable => true)
@@ -202,6 +203,7 @@ module Nanite
           register(serializer.load(msg))
         rescue Exception => e
           Nanite::Log.error("RECV [register] #{e.message}")
+          callbacks[:exception].call(e, msg, mapper) rescue nil if callbacks[:exception]
         end
       end
       reg_fanout = amq.fanout('registration', :durable => true)
@@ -218,6 +220,7 @@ module Nanite
           handle_request(serializer.load(msg))
         rescue Exception => e
           Nanite::Log.error("RECV [request] #{e.message}")
+          callbacks[:exception].call(e, msg, mapper) rescue nil if callbacks[:exception]
         end
       end
       req_fanout = amq.fanout('request', :durable => true)

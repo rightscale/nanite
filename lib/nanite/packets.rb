@@ -89,7 +89,7 @@ module Nanite
 
     attr_accessor :chunk, :token
 
-    def initialize(token, size=nil, chunk=nil)
+    def initialize(token, chunk=nil, size=nil)
       @chunk = chunk
       @token = token
       @size = size
@@ -97,7 +97,7 @@ module Nanite
 
     def self.json_create(o)
       i = o['data']
-      new(i['token'], o['size'], i['chunk'])
+      new(i['token'], i['chunk'], o['size'])
     end
 
     def to_s
@@ -124,7 +124,7 @@ module Nanite
 
     DEFAULT_OPTIONS = {:selector => :least_loaded}
 
-    def initialize(type, payload, size=nil, opts={})
+    def initialize(type, payload, opts={}, size=nil)
       opts = DEFAULT_OPTIONS.merge(opts)
       @type       = type
       @payload    = payload
@@ -140,10 +140,10 @@ module Nanite
 
     def self.json_create(o)
       i = o['data']
-      new(i['type'], i['payload'], o['size'], { :from     => i['from'],     :token      => i['token'],
-                                                :reply_to => i['reply_to'], :selector   => i['selector'],
-                                                :target   => i['target'],   :persistent => i['persistent'],
-                                                :tags     => i['tags'] })
+      new(i['type'], i['payload'], { :from     => i['from'],     :token      => i['token'],
+                                     :reply_to => i['reply_to'], :selector   => i['selector'],
+                                     :target   => i['target'],   :persistent => i['persistent'],
+                                     :tags     => i['tags'] }, o['size'])
     end
 
     def to_s(filter=nil)
@@ -176,7 +176,7 @@ module Nanite
 
     DEFAULT_OPTIONS = {:selector => :least_loaded}
 
-    def initialize(type, payload, size=nil, opts={})
+    def initialize(type, payload, opts={}, size=nil)
       opts = DEFAULT_OPTIONS.merge(opts)
       @type       = type
       @payload    = payload
@@ -191,9 +191,9 @@ module Nanite
 
     def self.json_create(o)
       i = o['data']
-      new(i['type'], i['payload'], o['size'], { :from       => i['from'],       :token  => i['token'],
-                                                :selector   => i['selector'],   :target => i['target'],
-                                                :persistent => i['persistent'], :tags   => i['tags'] })
+      new(i['type'], i['payload'], { :from       => i['from'],       :token  => i['token'],
+                                     :selector   => i['selector'],   :target => i['target'],
+                                     :persistent => i['persistent'], :tags   => i['tags'] }, o['size'])
     end
 
     def to_s(filter=nil)

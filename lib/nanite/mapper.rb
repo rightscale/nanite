@@ -76,10 +76,13 @@ module Nanite
     # secure      : use Security features of rabbitmq to restrict nanites to themselves
     #
     # prefetch    : Sets prefetch (only supported in RabbitMQ >= 1.6)
-    # callbacks   : A set of callbacks to have code executed on specific events, supported events are :register,
-    #               :unregister and :timeout. Parameter must be a hash with the corresponding events as keys and
-    #               a block as value. The block will get the corresponding nanite's identity and a copy of the   
-    #               mapper
+    #
+    # callbacks   : A set of callbacks to be executed on specific events. Supported events are :register,
+    #               :unregister, :timeout and :exception. This option must be a hash with event names as
+    #               as keys and Procs as values. The Proc's arity (number of parameters) depends on the
+    #               type of callback:
+    #                    exception  -- the exception, the message being processed, a reference to the mapper
+    #                    all others -- the corresponding nanite's identity, a reference to the mapper
     #
     # Connection options:
     #
@@ -245,7 +248,7 @@ module Nanite
     private
 
     def build_deliverable(deliverable_type, type, payload, opts)
-      deliverable = deliverable_type.new(type, payload, nil, opts)
+      deliverable = deliverable_type.new(type, payload, opts)
       deliverable.from = identity
       deliverable.token = Identity.generate
       deliverable.persistent = opts.key?(:persistent) ? opts[:persistent] : options[:persistent]
@@ -292,6 +295,7 @@ module Nanite
           job_warden.process(msg)
         rescue Exception => e
           Nanite::Log.error("RECV [result] #{e.message}")
+          callbacks[:exception].call(e, msg, mapper) rescue nil if callbacks[:exception]          
         end
       end
     end
