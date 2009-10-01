@@ -27,12 +27,12 @@ module Nanite
     # The default implementation for the tag store reuses Redis.
   
     def initialize(redis, tag_store=nil)
-      Nanite::Log.info("[setup] initializing redis state: #{redis}")
       host, port = redis.split(':')
       host ||= '127.0.0.1'
       port ||= '6379'
       @redis = Redis.new :host => host, :port => port
-      @tag_store ||= RedisTagStore.new(@redis)
+      @tag_store = tag_store || RedisTagStore.new(@redis)
+      Nanite::Log.info("[setup] Initializing redis state using host '#{host}', port '#{port}' and tag store #{@tag_store.class.to_s}")
     end
     
     def log_redis_error(meth,&blk)

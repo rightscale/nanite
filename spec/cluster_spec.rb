@@ -111,6 +111,15 @@ describe Nanite::Cluster do
           cluster = Nanite::Cluster.new(@amq, 443, "the_identity", @serializer, @mapper, "localhost:1234")
           cluster.nanites.instance_of?(Nanite::State).should == true
         end
+
+       it "should use a custom tag store when requested" do
+          state = Nanite::State.new("")
+          tag_store = mock('tag_store')
+          Nanite::State.should_receive(:new).with("localhost:1235", tag_store).and_return(state)
+          cluster = Nanite::Cluster.new(@amq, 443, "the_identity", @serializer, @mapper,
+                                       { :redis_host => 'localhost', :redis_port => 1235, :tag_store => tag_store })
+          cluster.nanites.instance_of?(Nanite::State).should == true
+       end
       end
     end
   end # Intialization

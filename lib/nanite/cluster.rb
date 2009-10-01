@@ -236,10 +236,14 @@ module Nanite
       when String
         # backwards compatibility, we assume redis if the configuration option
         # was a string
-        Nanite::Log.info("[setup] using redis for state storage")
         require 'nanite/state'
         @nanites = Nanite::State.new(@state)
       when Hash
+        redis_host = @state[:redis_host]
+        redis_port = @state[:redis_port]
+        tag_store  = @state[:tag_store]
+        require 'nanite/state'
+        @nanites = Nanite::State.new("#{redis_host}:#{redis_port}", tag_store)
       else
         require 'nanite/local_state'
         @nanites = Nanite::LocalState.new
