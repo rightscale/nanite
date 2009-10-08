@@ -49,7 +49,15 @@ module Nanite
       push.persistent = opts.key?(:persistent) ? opts[:persistent] : options[:persistent]
       Nanite::Log.info("SEND #{push.to_s([:tags, :target])}")
       amqp.fanout('request', :no_declare => options[:secure]).publish(serializer.dump(push))
-    end    
+    end
+
+    # Update tags registered by mapper for agent
+    def update_tags(new_tags, obsolete_tags)
+      raise "Mapper proxy not initialized" unless identity && options
+      update = TagUpdate.new(identity, new_tags, obsolete_tags)
+      Nanite::Log.info("SEND #{update.to_s}")
+      amqp.fanout('registration', :no_declare => options[:secure]).publish(serializer.dump(update))
+    end
     
     # Handle intermediary result
     def handle_intermediate_result(res)

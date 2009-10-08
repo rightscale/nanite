@@ -14,7 +14,7 @@ module Nanite
       all(:tags)
     end
 
-    def nanites_for(service, *tags)
+    def nanites_for(from, service, *tags)
       tags = tags.dup.flatten
       nanites = select { |name, state| state[:services].include?(service) }
       unless tags.empty?

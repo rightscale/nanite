@@ -27,6 +27,26 @@ class String
   def to_const_path
     snake_case.gsub(/::/, "/")
   end
+
+  # Convert constant name to constant
+  #
+  # "FooBar::Baz".to_const => FooBar::Baz
+  #
+  # @return [Constant] Constant corresponding to given name or nil if no
+  #   constant with that name exists
+  #
+  # @api public
+  def to_const
+    names = split('::')
+    names.shift if names.empty? || names.first.empty?
+
+    constant = Object
+    names.each do |name|
+      # modified to return nil instead of raising an const_missing error
+      constant = constant && constant.const_defined?(name) ? constant.const_get(name) : nil
+    end
+    constant
+  end
 end
 
 class Object

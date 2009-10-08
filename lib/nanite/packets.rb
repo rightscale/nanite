@@ -360,6 +360,33 @@ module Nanite
     end
 
   end
- 
+
+  # packet that is sent by agents to the mapper
+  # to update their tags
+  class TagUpdate < Packet
+
+    attr_accessor :identity, :new_tags, :obsolete_tags
+
+    def initialize(identity, new_tags, obsolete_tags, size=nil)
+      @identity      = identity
+      @new_tags      = new_tags
+      @obsolete_tags = obsolete_tags
+      @size          = size
+    end
+
+    def self.json_create(o)
+      i = o['data']
+      new(i['identity'], i['new_tags'], i['obsolete_tags'], o['size'])
+    end
+
+    def to_s
+      log_msg = "#{super} #{id_to_s(identity)}"
+      log_msg += ", new tags: #{new_tags.join(', ')}" if new_tags && !new_tags.empty?
+      log_msg += ", obsolete tags: #{obsolete_tags.join(', ')}" if obsolete_tags && !obsolete_tags.empty?
+      log_msg
+    end
+
+  end
+
 end
 

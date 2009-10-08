@@ -84,6 +84,8 @@ module Nanite
     #                    exception  -- the exception, the message being processed, a reference to the mapper
     #                    all others -- the corresponding nanite's identity, a reference to the mapper
     #
+    # tag_store   : Name of class which implements tag store backend interface, RedisTagStore by default
+    #
     # Connection options:
     #
     # vhost    : AMQP broker vhost that should be used
@@ -306,7 +308,7 @@ module Nanite
     end
 
     def setup_cluster
-      @cluster = Cluster.new(@amq, @options[:agent_timeout], @options[:identity], @serializer, self, @options[:redis], @options[:callbacks])
+      @cluster = Cluster.new(@amq, @options[:agent_timeout], @options[:identity], @serializer, self, @options[:redis], @options[:tag_store], @options[:callbacks])
     end
   end
 end

@@ -15,11 +15,13 @@ module Nanite
     # The tag store is used to store the associated services and tags.
     #
     # A tag store should provide the following methods:
+    #  - initialize(redis): Initialize tag store, may use provided redis handle
     #  - services(nanite): Retrieve services implemented by given agent
     #  - tags(nanite): Retrieve tags implemented by given agent
     #  - all_services: Retrieve all services implemented by all agents
     #  - all_tags: Retrieve all tags exposed by all agents
     #  - store(nanite, services, tags): Store agent's services and tags
+    #  - update(name, new_tags,obsolete_tags): Update agent's tags
     #  - delete(nanite): Delete all entries associated with given agent
     #  - nanites_for(service, tags): Retrieve agents implementing given service
     #                                and exposing given tags
@@ -27,85 +29,101 @@ module Nanite
     # The default implementation for the tag store reuses Redis.
   
     def initialize(redis, tag_store=nil)
-      host, port = redis.split(':')
+      host, port, tag_store_type = redis.split(':')
       host ||= '127.0.0.1'
       port ||= '6379'
-      @redis = Redis.new :host => host, :port => port
-      @tag_store = tag_store || RedisTagStore.new(@redis)
-      Nanite::Log.info("[setup] Initializing redis state using host '#{host}', port '#{port}' and tag store #{@tag_store.class.to_s}")
+      tag_store||= 'Nanite::RedisTagStore'
+      @redis = Redis.new(:host => host, :port => port)
+      @tag_store = tag_store.to_const.new(@redis)
+      Nanite::Log.info("[setup] Initializing redis state using host '#{host}', port '#{port}' and tag store #{tag_store}")
     end
-    
-    def log_redis_error(meth,&blk)
-      blk.call
-    rescue Exception => e
-      Nanite::Log.info("redis error in method: #{meth}")
-      raise e
-    end
-    
+
+    # Retrieve given agent services, tags, status and timestamp
     def [](nanite)
-      log_redis_error("[]") do
-        status = @redis[nanite]
+      log_redis_error do
+        status    = @redis[nanite]
         timestamp = @redis["t-#{nanite}"]
-        services = @tag_store.services(nanite)
-        tags = @tag_store.tags(nanite)
+        services  = @tag_store.services(nanite)
+        tags      = @tag_store.tags(nanite)
         return nil unless status && timestamp && services
         {:services => services, :status => status, :timestamp => timestamp.to_i, :tags => tags}
       end
     end
-    
+
+    # Set given attributes for given agent
+    # Attributes may include services, tags and status
     def []=(nanite, attributes)
-      log_redis_error("[]=") do
-        update_state(nanite, attributes[:status], attributes[:services], attributes[:tags])
-      end
+      @tag_store.store(nanite, attributes[:services], attributes[:tags])
+      update_status(nanite, attributes[:status])
     end
-    
+
+    # Delete all information related to given agent
     def delete(nanite)
-      log_redis_error("delete") do
-        @tag_store.delete(nanite)
-        @redis.delete nanite
-        @redis.delete "t-#{nanite}"
+      @tag_store.delete(nanite)
+      log_redis_error do
+        @redis.delete(nanite)
+        @redis.delete("t-#{nanite}")
       end
     end
-    
+
+    # Return all services exposed by all agents
     def all_services
       @tag_store.all_services
     end
 
+    # Return all tags exposed by all agents
     def all_tags
       @tag_store.all_tags
     end
-    
-    def update_state(name, status, services, tags)
-      @tag_store.store(name, services, tags)
-      update_status(name, status)
-    end
 
+    # Update status and timestamp for given agent
     def update_status(name, status)
-      log_redis_error("update_status") do
+      log_redis_error do
         @redis[name] = status
         @redis["t-#{name}"] = Time.now.utc.to_i
       end
     end
-    
+
+    # Update tags for given agent
+    def update_tags(name, new_tags, obsolete_tags)
+      @tag_store.update(name, new_tags, obsolete_tags)
+    end
+
+    # Return all registered agents
     def list_nanites
-      log_redis_error("list_nanites") do
+      log_redis_error do
         @redis.keys("nanite-*")
       end
     end
-    
+
+    # Number of registered agents
     def size
       list_nanites.size
     end
-    
+
+    # Iterate through all agents, yielding services, tags
+    # status and timestamp keyed by agent name
     def each
       list_nanites.each do |nan|
         yield nan, self[nan]
       end
     end
-    
-    def nanites_for(service, *tags)
-      @tag_store.nanites_for(service, tags)
+
+    # Return agents that implement given service and expose
+    # all given tags
+    def nanites_for(from, service, *tags)
+      @tag_store.nanites_for(from, service, tags)
     end
 
+    private
+
+    # Helper method, catch and log errors
+    def log_redis_error(&blk)
+      blk.call
+    rescue Exception => e
+      Nanite::Log.warn("redis error in method: #{caller[0]}")
+      raise e
+    end
+    
   end
 end  

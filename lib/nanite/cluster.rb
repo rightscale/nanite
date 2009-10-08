@@ -2,13 +2,14 @@ module Nanite
   class Cluster
     attr_reader :agent_timeout, :nanites, :reaper, :serializer, :identity, :amq, :redis, :mapper, :callbacks
 
-    def initialize(amq, agent_timeout, identity, serializer, mapper, state_configuration=nil, callbacks = {})
+    def initialize(amq, agent_timeout, identity, serializer, mapper, state_configuration=nil, tag_store=nil, callbacks = {})
       @amq = amq
       @agent_timeout = agent_timeout
       @identity = identity
       @serializer = serializer
       @mapper = mapper
       @state = state_configuration
+      @tag_store = tag_store
       @security = SecurityProvider.get
       @callbacks = callbacks
       setup_state
@@ -19,7 +20,7 @@ module Nanite
     # determine which nanites should receive the given request
     def targets_for(request)
       return [request.target] if request.target
-      __send__(request.selector, request.type, request.tags).collect {|name, state| name }
+      __send__(request.selector, request.from, request.type, request.tags).collect {|name, state| name }
     end
 
     # adds nanite to nanites map: key is nanite's identity
@@ -41,6 +42,9 @@ module Nanite
         reaper.unregister(reg.identity)
         nanites.delete(reg.identity)
         callbacks[:unregister].call(reg.identity, mapper) if callbacks[:unregister]
+      when TagUpdate
+        Nanite::Log.info("RECV #{reg.to_s}")
+        nanites.update_tags(reg.identity, reg.new_tags, reg.obsolete_tags)
       else
         Nanite::Log.warn("RECV [register] Invalid packet type: #{reg.class}")
       end
@@ -126,21 +130,21 @@ module Nanite
     end
     
     # returns least loaded nanite that provides given service
-    def least_loaded(service, tags=[])
-      candidates = nanites_providing(service,tags)
+    def least_loaded(from, service, tags=[])
+      candidates = nanites_providing(from, service,tags)
       return [] if candidates.empty?
 
       [candidates.min { |a,b| a[1][:status] <=> b[1][:status] }]
     end
 
     # returns all nanites that provide given service
-    def all(service, tags=[])
-      nanites_providing(service,tags)
+    def all(from, service, tags=[])
+      nanites_providing(from, service,tags)
     end
 
     # returns a random nanite
-    def random(service, tags=[])
-      candidates = nanites_providing(service,tags)
+    def random(from, service, tags=[])
+      candidates = nanites_providing(from, service,tags)
       return [] if candidates.empty?
 
       [candidates[rand(candidates.size)]]
@@ -148,10 +152,10 @@ module Nanite
 
     # selects next nanite that provides given service
     # using round robin rotation
-    def rr(service, tags=[])
+    def rr(from, service, tags=[])
       @last ||= {}
       @last[service] ||= 0
-      candidates = nanites_providing(service,tags)
+      candidates = nanites_providing(from, service,tags)
       return [] if candidates.empty?
       @last[service] = 0 if @last[service] >= candidates.size
       candidate = candidates[@last[service]]
@@ -164,8 +168,8 @@ module Nanite
     end
 
     # returns all nanites that provide the given service
-    def nanites_providing(service, *tags)
-      nanites.nanites_for(service, *tags).delete_if do |nanite| 
+    def nanites_providing(from, service, *tags)
+      nanites.nanites_for(from, service, *tags).delete_if do |nanite| 
         if timed_out?(nanite[1])
           Nanite::Log.debug("Ignoring timed out nanite #{nanite[0]} in target selection - last seen at #{nanite[1][:timestamp]}")
         end
@@ -237,13 +241,7 @@ module Nanite
         # backwards compatibility, we assume redis if the configuration option
         # was a string
         require 'nanite/state'
-        @nanites = Nanite::State.new(@state)
-      when Hash
-        redis_host = @state[:redis_host]
-        redis_port = @state[:redis_port]
-        tag_store  = @state[:tag_store]
-        require 'nanite/state'
-        @nanites = Nanite::State.new("#{redis_host}:#{redis_port}", tag_store)
+        @nanites = Nanite::State.new(@state, @tag_store)
       else
         require 'nanite/local_state'
         @nanites = Nanite::LocalState.new

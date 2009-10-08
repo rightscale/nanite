@@ -33,8 +33,23 @@ module Nanite
 
     # Store services and tags for given agent
     def store(nanite, services, tags)
-      store_elems(nanite, "s-#{nanite}", 'naniteservices', services)
-      store_elems(nanite, "tg-#{nanite}", 'nanitestags', tags)
+      services = nil if services.compact.empty?
+      tags = nil if tags.compact.empty?
+      log_redis_error do
+        if services
+          obsolete_services = @redis.set_members("s-#{nanite}") - services
+          update_elems(nanite, services, obsolete_services, "s-#{nanite}", 'naniteservices')
+        end
+        if tags
+          obsolete_tags = @redis.set_members("tg-#{nanite}") - tags
+          update_elems(nanite, tags, obsolete_tags, "tg-#{nanite}", 'nanitestags')
+        end
+      end
+    end
+
+    # Update tags for given agent
+    def update(nanite, new_tags, obsolete_tags)
+      update_elems(nanite, new_tags, obsolete_tags, "tg-#{nanite}", 'nanitestags')
     end
 
     # Delete services and tags for given agent
@@ -68,32 +83,32 @@ module Nanite
     end
 
     # Retrieve nanites implementing given service and exposing given tags
-    def nanites_for(service, *tags)
+    def nanites_for(from, service, tags)
       log_redis_error do
-        @redis.set_intersect(tags.dup << service)
+        @redis.set_intersect(((tags || []).dup << service).compact)
       end
     end
 
     private
 
-    # Store values for given nanite agent
+    # Update values stored for given agent
     # Also store reverse lookup information using both a unique and
     # a global key (so it's possible to retrieve that agent value or
     # all related values)
-    def store_elems(nanite, elem_key, global_key, values)
+    def update_elems(nanite, new_tags, obsolete_tags, elem_key, global_key)
+      new_tags = nil if new_tags.compact.empty?
+      obsolete_tags = nil if obsolete_tags.compact.empty?
       log_redis_error do
-        if old_values = @redis.set_members(elem_key)
-          (old_values - values).each do |val|
-            @redis.set_delete(val, nanite)
-            @redis.set_delete(global_key, val)
-          end
-        end
-        @redis.delete(elem_key)
-        values.each do |val|
+        obsolete_tags.each do |val|
+          @redis.set_delete(val, nanite)
+          @redis.set_delete(elem_key, val)
+          @redis.set_delete(global_key, val)
+        end if obsolete_tags
+        new_tags.each do |val|
           @redis.set_add(val, nanite)
           @redis.set_add(elem_key, val)
           @redis.set_add(global_key, val)
-        end
+        end if new_tags
       end
     end
 

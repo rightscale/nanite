@@ -107,17 +107,16 @@ describe Nanite::Cluster do
       
         it "should set up a redis state when requested" do
           state = Nanite::State.new("")
-          Nanite::State.should_receive(:new).with("localhost:1234").and_return(state)
+          Nanite::State.should_receive(:new).with("localhost:1234", nil).and_return(state)
           cluster = Nanite::Cluster.new(@amq, 443, "the_identity", @serializer, @mapper, "localhost:1234")
           cluster.nanites.instance_of?(Nanite::State).should == true
         end
 
        it "should use a custom tag store when requested" do
           state = Nanite::State.new("")
-          tag_store = mock('tag_store')
+          tag_store = mock('TagStore')
           Nanite::State.should_receive(:new).with("localhost:1235", tag_store).and_return(state)
-          cluster = Nanite::Cluster.new(@amq, 443, "the_identity", @serializer, @mapper,
-                                       { :redis_host => 'localhost', :redis_port => 1235, :tag_store => tag_store })
+          cluster = Nanite::Cluster.new(@amq, 443, "the_identity", @serializer, @mapper, 'localhost:1235', tag_store)
           cluster.nanites.instance_of?(Nanite::State).should == true
        end
       end
@@ -178,30 +177,30 @@ describe Nanite::Cluster do
     end
 
     it "should use targets choosen by least loaded selector (:least_loaded)" do
-      request = mock("Request", :target => nil, :selector => :least_loaded, :type => "/foo/bar", :tags => [])
-      @cluster.should_receive(:nanites_providing).with('/foo/bar', []).and_return(@all_known_nanites)
+      request = mock("Request", :from => 'from', :target => nil, :selector => :least_loaded, :type => "/foo/bar", :tags => [])
+      @cluster.should_receive(:nanites_providing).with('from', '/foo/bar', []).and_return(@all_known_nanites)
       
       @cluster.targets_for(request).should == ["nanite-1"]
     end
 
     it "should use targets choosen by all selector (:all)" do
-      request = mock("Request", :target => nil, :selector => :all, :type => "/foo/bar", :tags => [])
-      @cluster.should_receive(:nanites_providing).with('/foo/bar', []).and_return(@all_known_nanites)
+      request = mock("Request", :from => 'from', :target => nil, :selector => :all, :type => "/foo/bar", :tags => [])
+      @cluster.should_receive(:nanites_providing).with('from', '/foo/bar', []).and_return(@all_known_nanites)
       
       @cluster.targets_for(request).should == ["nanite-1", "nanite-2", "nanite-3", "nanite-4"]
     end
 
     it "should use targets choosen by random selector (:random)" do
-      request = mock("Request", :target => nil, :selector => :random, :type => "/foo/bar", :tags => [])
-      @cluster.should_receive(:nanites_providing).with('/foo/bar', []).and_return(@all_known_nanites)
+      request = mock("Request", :from => 'from', :target => nil, :selector => :random, :type => "/foo/bar", :tags => [])
+      @cluster.should_receive(:nanites_providing).with('from', '/foo/bar', []).and_return(@all_known_nanites)
   
       @cluster.should_receive(:rand).with(4).and_return(2)
       @cluster.targets_for(request).should == ["nanite-3"]
     end
 
     it "should use targets choosen by round-robin selector (:rr)" do
-      request = mock("Request", :target => nil, :selector => :rr, :type => "/foo/bar", :tags => [])
-      @cluster.stub!(:nanites_providing).with('/foo/bar', []).and_return(@all_known_nanites)
+      request = mock("Request", :from => 'from', :target => nil, :selector => :rr, :type => "/foo/bar", :tags => [])
+      @cluster.stub!(:nanites_providing).with('from', '/foo/bar', []).and_return(@all_known_nanites)
       
       @cluster.instance_variable_set("@last", {})
       
@@ -216,8 +215,8 @@ describe Nanite::Cluster do
     end
     
     it "should pass the tag filter down" do
-      request = mock("Request", :target => nil, :selector => :least_loaded, :type => "/foo/bar", :tags => ['a'])
-      @cluster.should_receive(:nanites_providing).with('/foo/bar', ['a']).and_return(@all_known_nanites)
+      request = mock("Request", :from => 'from', :target => nil, :selector => :least_loaded, :type => "/foo/bar", :tags => ['a'])
+      @cluster.should_receive(:nanites_providing).with('from', '/foo/bar', ['a']).and_return(@all_known_nanites)
   
       @cluster.targets_for(request).should == ["nanite-1"]
     end
@@ -228,7 +227,7 @@ describe Nanite::Cluster do
       nanites = mock("Nanites", :nanites_for => @all_known_nanites)
       @cluster.should_receive(:nanites).and_return(nanites)
       
-      request = mock("Request", :target => nil, :selector => :least_loaded, :type => "/foo/bar", :tags => [])
+      request = mock("Request", :from => nil, :target => nil, :selector => :least_loaded, :type => "/foo/bar", :tags => [])
       
       @cluster.targets_for(request).should == ["nanite-2"]
     end
@@ -239,7 +238,7 @@ describe Nanite::Cluster do
       nanites = mock("Nanites", :nanites_for => @all_known_nanites)
       @cluster.should_receive(:nanites).and_return(nanites)
       
-      request = mock("Request", :target => nil, :selector => :all, :type => "/foo/bar", :tags => [])
+      request = mock("Request", :from => 'from', :target => nil, :selector => :all, :type => "/foo/bar", :tags => [])
       
       @cluster.targets_for(request).should == ["nanite-2", "nanite-4"]
     end
@@ -294,7 +293,7 @@ describe Nanite::Cluster do
     describe "with registered callbacks" do
       before(:each) do
         @register_callback = lambda {|request, mapper|}
-        @cluster = Nanite::Cluster.new(@amq, 32, "the_identity", @serializer, @mapper, nil, :register =>  @register_callback)
+        @cluster = Nanite::Cluster.new(@amq, 32, "the_identity", @serializer, @mapper, nil, nil, :register =>  @register_callback)
       end
       
       it "should call the registration callback" do
@@ -339,7 +338,7 @@ describe Nanite::Cluster do
     describe "with registered callbacks" do
       before(:each) do
         @unregister_callback = lambda {|request, mapper| }
-        @cluster = Nanite::Cluster.new(@amq, 32, "the_identity", @serializer, @mapper, nil, :unregister => @unregister_callback)
+        @cluster = Nanite::Cluster.new(@amq, 32, "the_identity", @serializer, @mapper, nil, nil, :unregister => @unregister_callback)
         @cluster.nanites["nanite_id"] = "nanite_id"
       end
       
@@ -618,7 +617,7 @@ describe Nanite::Cluster do
         run_in_em(false) do
           @timeout_callback = lambda {|nanite, mapper| }
           @timeout_callback.should_receive(:call).with("nanite_id", @mapper)
-          @cluster = Nanite::Cluster.new(@amq, 0.1, "the_identity", @serializer, @mapper, nil, :timeout => @timeout_callback)
+          @cluster = Nanite::Cluster.new(@amq, 0.1, "the_identity", @serializer, @mapper, nil, nil, :timeout => @timeout_callback)
           @cluster.nanites["nanite_id"] = {:status => "nanite_status"}
           @cluster.send :handle_ping, @ping
           EM.add_timer(1.5) do
