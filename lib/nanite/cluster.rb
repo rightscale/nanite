@@ -131,7 +131,7 @@ module Nanite
     
     # returns least loaded nanite that provides given service
     def least_loaded(from, service, tags=[])
-      candidates = nanites_providing(from, service,tags)
+      candidates = nanites_providing(from, service, tags)
       return [] if candidates.empty?
 
       [candidates.min { |a,b| a[1][:status] <=> b[1][:status] }]
@@ -168,8 +168,8 @@ module Nanite
     end
 
     # returns all nanites that provide the given service
-    def nanites_providing(from, service, *tags)
-      nanites.nanites_for(from, service, *tags).delete_if do |nanite| 
+    def nanites_providing(from, service, tags)
+      nanites.nanites_for(from, service, tags).delete_if do |nanite| 
         if timed_out?(nanite[1])
           Nanite::Log.debug("Ignoring timed out nanite #{nanite[0]} in target selection - last seen at #{nanite[1][:timestamp]}")
         end

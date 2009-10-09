@@ -73,18 +73,18 @@ describe "Nanite::LocalState: " do
 
     it "should find services matching the service criteria if no tags criteria is specified" do
       state = Nanite::LocalState.new({:a => { :services => "a's services" }, :b => { :services => "b's services" }})
-      state.nanites_for(:a, "b's services").should == [[:b, {:services => "b's services"}]]
+      state.nanites_for(:a, "b's services", []).should == [[:b, {:services => "b's services"}]]
     end
 
     it "should find all services matching the service criteria if no tags criteria is specified" do
       state = Nanite::LocalState.new({:a => { :services => "services" }, :b => { :services => "services" }, :c => { :services => "other services" }})
-      state.nanites_for(:b, "services").should include([:a, {:services => "services"}])
-      state.nanites_for(:a, "services").should include([:b, {:services => "services"}])
+      state.nanites_for(:b, "services", []).should include([:a, {:services => "services"}])
+      state.nanites_for(:a, "services", []).should include([:b, {:services => "services"}])
     end
 
     it "should only services matching the service criteria that also match the tags criteria" do
       state = Nanite::LocalState.new({:a => { :services => "a's services", :tags => ["a_1", "a_2"] }, :b => { :services => "b's services", :tags => ["b_1", "b_2"] }})
-      state.nanites_for(:a, "b's services").should == [[:b, {:tags=>["b_1", "b_2"], :services=>"b's services"}]]
+      state.nanites_for(:a, "b's services", []).should == [[:b, {:tags=>["b_1", "b_2"], :services=>"b's services"}]]
     end
     
     it "should find all services with matching tags even if the tag order is different" do

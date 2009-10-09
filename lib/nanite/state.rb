@@ -111,8 +111,12 @@ module Nanite
 
     # Return agents that implement given service and expose
     # all given tags
-    def nanites_for(from, service, *tags)
-      @tag_store.nanites_for(from, service, tags)
+    def nanites_for(from, service, tags)
+      res = []
+      @tag_store.nanites_for(from, service, tags).each do |nan|
+        res << [nan, self[nan]]
+      end
+      res
     end
 
     private
