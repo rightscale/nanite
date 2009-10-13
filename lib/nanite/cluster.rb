@@ -59,19 +59,23 @@ module Nanite
         true
       end
     end
-    
+
     def route(request, targets)
       EM.next_tick { targets.map { |target| publish(request, target) } }
     end
 
     def publish(request, target)
-      # We need to initialize the 'target' field of the request object so that the serializer has
-      # access to it.
+      # We need to initialize the 'target' field of the request object so that the serializer and
+      # the security provider have access to it.
       begin
         old_target = request.target
         request.target = target unless target == 'mapper-offline'
-        Nanite::Log.info("SEND #{request.to_s([:from, :tags, :target])}")
-        amq.queue(target).publish(serializer.dump(request), :persistent => request.persistent)
+        if @security.authorize_request(request)
+          Nanite::Log.info("SEND #{request.to_s([:from, :tags, :target])}")
+          amq.queue(target).publish(serializer.dump(request), :persistent => request.persistent)
+        else
+          Nanite::Log.warn("RECV NOT AUTHORIZED #{request.to_s}")
+        end
       ensure
         request.target = old_target
       end
@@ -93,42 +97,38 @@ module Nanite
         end
       end
     end
-    
+
     # forward request coming from agent
     def handle_request(request)
-      if @security.authorize_request(request)
-        Nanite::Log.info("RECV #{request.to_s([:from, :target, :tags])}") unless Nanite::Log.level == :debug
-        Nanite::Log.debug("RECV #{request.to_s}")
-        case request
-        when Push
-          mapper.send_push(request)
-        else
-          intm_handler = lambda do |result, job|
-            result = IntermediateMessage.new(request.token, job.request.from, mapper.identity, nil, result)
-            forward_response(result, request.persistent)
-          end
-        
-          result = Result.new(request.token, request.from, nil, mapper.identity)
-          ok = mapper.send_request(request, :intermediate_handler => intm_handler) do |res|
-            result.results = res
-            forward_response(result, request.persistent)
-          end
-          
-          if ok == false
-            forward_response(result, request.persistent)
-          end
-        end
+      Nanite::Log.info("RECV #{request.to_s([:from, :target, :tags])}") unless Nanite::Log.level == :debug
+      Nanite::Log.debug("RECV #{request.to_s}")
+      case request
+      when Push
+        mapper.send_push(request)
       else
-        Nanite::Log.warn("RECV NOT AUTHORIZED #{request.to_s}")
+        intm_handler = lambda do |result, job|
+          result = IntermediateMessage.new(request.token, job.request.from, mapper.identity, nil, result)
+          forward_response(result, request.persistent)
+        end
+
+        result = Result.new(request.token, request.from, nil, mapper.identity)
+        ok = mapper.send_request(request, :intermediate_handler => intm_handler) do |res|
+          result.results = res
+          forward_response(result, request.persistent)
+        end
+
+        if ok == false
+          forward_response(result, request.persistent)
+        end
       end
     end
-    
+
     # forward response back to agent that originally made the request
     def forward_response(res, persistent)
       Nanite::Log.info("SEND #{res.to_s([:to])}")
       amq.queue(res.to).publish(serializer.dump(res), :persistent => persistent)
     end
-    
+
     # returns least loaded nanite that provides given service
     def least_loaded(from, service, tags=[])
       candidates = nanites_providing(from, service, tags)
@@ -162,14 +162,14 @@ module Nanite
       @last[service] += 1
       [candidate]
     end
-    
+
     def timed_out?(nanite)
       nanite[:timestamp].to_i < (Time.now.utc - agent_timeout).to_i
     end
 
     # returns all nanites that provide the given service
     def nanites_providing(from, service, tags)
-      nanites.nanites_for(from, service, tags).delete_if do |nanite| 
+      nanites.nanites_for(from, service, tags).delete_if do |nanite|
         if timed_out?(nanite[1])
           Nanite::Log.debug("Ignoring timed out nanite #{nanite[0]} in target selection - last seen at #{nanite[1][:timestamp]}")
         end
@@ -217,7 +217,7 @@ module Nanite
         amq.queue("registration-#{identity}", :exclusive => true).bind(reg_fanout).subscribe &handler
       end
     end
-    
+
     def setup_request_queue
       handler = lambda do |msg|
         begin
@@ -247,7 +247,7 @@ module Nanite
         @nanites = Nanite::LocalState.new
       end
     end
-    
+
     def shared_state?
       !@state.nil?
     end
