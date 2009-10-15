@@ -112,15 +112,16 @@ module Nanite
   # payload  is arbitrary data that is transferred from mapper to actor
   #
   # Options:
-  # from     is sender identity
-  # token    is a generated request id that mapper uses to identify replies
-  # reply_to is identity of the node actor replies to, usually a mapper itself
-  # selector is the selector used to route the request
-  # target   is the target nanite for the request
+  # from      is sender identity
+  # on_behalf is agent identity that should be used to authorize request
+  # token     is a generated request id that mapper uses to identify replies
+  # reply_to  is identity of the node actor replies to, usually a mapper itself
+  # selector  is the selector used to route the request
+  # target    is the target nanite for the request
   # persistent signifies if this request should be saved to persistent storage by the AMQP broker
   class Request < Packet
 
-    attr_accessor :from, :payload, :type, :token, :reply_to, :selector, :target, :persistent, :tags
+    attr_accessor :from, :on_behalf, :payload, :type, :token, :reply_to, :selector, :target, :persistent, :tags
 
     DEFAULT_OPTIONS = {:selector => :least_loaded}
 
@@ -130,6 +131,7 @@ module Nanite
       @payload    = payload
       @size       = size
       @from       = opts[:from]
+      @on_behalf  = opts[:on_behalf]
       @token      = opts[:token]
       @reply_to   = opts[:reply_to]
       @selector   = opts[:selector]
@@ -140,15 +142,17 @@ module Nanite
 
     def self.json_create(o)
       i = o['data']
-      new(i['type'], i['payload'], { :from     => i['from'],     :token      => i['token'],
-                                     :reply_to => i['reply_to'], :selector   => i['selector'],
-                                     :target   => i['target'],   :persistent => i['persistent'],
-                                     :tags     => i['tags'] }, o['size'])
+      new(i['type'], i['payload'], { :from     => i['from'],         :on_behalf => i['on_behalf'],
+                                     :token      => i['token'],      :reply_to => i['reply_to'], 
+                                     :selector   => i['selector'],   :target   => i['target'],
+                                     :persistent => i['persistent'], :tags     => i['tags'] },
+                                   o['size'])
     end
 
     def to_s(filter=nil)
       log_msg = "#{super} <#{token}> #{type}"
       log_msg += " from #{id_to_s(from)}" if filter.nil? || filter.include?(:from)
+      log_msg += " on behalf of #{id_to_s(on_behalf)}" if on_behalf && (filter.nil? || filter.include?(:on_behalf))
       log_msg += " to #{id_to_s(target)}" if target && (filter.nil? || filter.include?(:target))
       log_msg += ", reply_to #{id_to_s(reply_to)}" if reply_to && (filter.nil? || filter.include?(:reply_to))
       log_msg += ", tags #{tags.inspect}" if tags && !tags.empty? && (filter.nil? || filter.include?(:tags))
@@ -165,14 +169,15 @@ module Nanite
   # payload  is arbitrary data that is transferred from mapper to actor
   #
   # Options:
-  # from     is sender identity
-  # token    is a generated request id that mapper uses to identify replies
-  # selector is the selector used to route the request
-  # target   is the target nanite for the request
+  # from      is sender identity
+  # on_behalf is agent identity that should be used to authorize request
+  # token     is a generated request id that mapper uses to identify replies
+  # selector  is the selector used to route the request
+  # target    is the target nanite for the request
   # persistent signifies if this request should be saved to persistent storage by the AMQP broker
   class Push < Packet
 
-    attr_accessor :from, :payload, :type, :token, :selector, :target, :persistent, :tags
+    attr_accessor :from, :on_behalf, :payload, :type, :token, :selector, :target, :persistent, :tags
 
     DEFAULT_OPTIONS = {:selector => :least_loaded}
 
@@ -182,6 +187,7 @@ module Nanite
       @payload    = payload
       @size       = size
       @from       = opts[:from]
+      @on_behalf  = opts[:on_behalf]
       @token      = opts[:token]
       @selector   = opts[:selector]
       @target     = opts[:target]
@@ -191,14 +197,17 @@ module Nanite
 
     def self.json_create(o)
       i = o['data']
-      new(i['type'], i['payload'], { :from       => i['from'],       :token  => i['token'],
-                                     :selector   => i['selector'],   :target => i['target'],
-                                     :persistent => i['persistent'], :tags   => i['tags'] }, o['size'])
+      new(i['type'], i['payload'], { :from   => i['from'],   :on_behalf  => i['on_behalf'],
+                                     :token  => i['token'],  :selector   => i['selector'],   
+                                     :target => i['target'], :persistent => i['persistent'], 
+                                     :tags   => i['tags'] },
+                                   o['size'])
     end
 
     def to_s(filter=nil)
       log_msg = "#{super} <#{token}> #{type}"
       log_msg += " from #{id_to_s(from)}" if filter.nil? || filter.include?(:from)
+      log_msg += " on behalf of #{id_to_s(on_behalf)}" if on_behalf && (filter.nil? || filter.include?(:on_behalf))
       log_msg += ", target #{id_to_s(target)}" if target && (filter.nil? || filter.include?(:target))
       log_msg += ", tags #{tags.inspect}" if tags && !tags.empty? && (filter.nil? || filter.include?(:tags))
       log_msg += ", payload #{payload.inspect}" if filter.nil? || filter.include?(:payload)

@@ -71,7 +71,7 @@ module Nanite
         old_target = request.target
         request.target = target unless target == 'mapper-offline'
         if @security.authorize_request(request)
-          Nanite::Log.info("SEND #{request.to_s([:from, :tags, :target])}")
+          Nanite::Log.info("SEND #{request.to_s([:from, :on_behalf, :tags, :target])}")
           amq.queue(target).publish(serializer.dump(request), :persistent => request.persistent)
         else
           Nanite::Log.warn("RECV NOT AUTHORIZED #{request.to_s}")
@@ -100,7 +100,7 @@ module Nanite
 
     # forward request coming from agent
     def handle_request(request)
-      Nanite::Log.info("RECV #{request.to_s([:from, :target, :tags])}") unless Nanite::Log.level == :debug
+      Nanite::Log.info("RECV #{request.to_s([:from, :on_behalf, :target, :tags])}") unless Nanite::Log.level == :debug
       Nanite::Log.debug("RECV #{request.to_s}")
       case request
       when Push
