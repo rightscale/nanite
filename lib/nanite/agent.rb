@@ -131,6 +131,16 @@ module Nanite
       @deny_token = deny_token
     end
 
+    # Update set of tags published by agent and notify mapper
+    # Add tags in 'new_tags' and remove tags in 'old_tags'
+    def update_tags(new_tags, old_tags)
+      @tags += (new_tags || [])
+      @tags -= (old_tags || [])
+      @tags.uniq!
+      tag_update = TagUpdate.new(identity, new_tags, old_tags)
+      amq.fanout('registration', :no_declare => options[:secure]).publish(serializer.dump(tag_update))
+    end
+
     protected
 
     def set_configuration(opts)
