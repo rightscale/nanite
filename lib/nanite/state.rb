@@ -113,8 +113,10 @@ module Nanite
     # all given tags
     def nanites_for(from, service, tags)
       res = []
-      @tag_store.nanites_for(from, service, tags).each do |nan|
-        res << [nan, self[nan]]
+      @tag_store.nanites_for(from, service, tags).each do |nanite_id|
+        if nanite = self[nanite_id]
+          res << [nanite_id, nanite]
+        end
       end
       res
     end
