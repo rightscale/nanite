@@ -170,9 +170,10 @@ module Nanite
     # returns all nanites that provide the given service
     def nanites_providing(from, service, tags)
       nanites.nanites_for(from, service, tags).delete_if do |nanite|
-        if timed_out?(nanite[1])
+        if res = timed_out?(nanite[1])
           Nanite::Log.debug("Ignoring timed out nanite #{nanite[0]} in target selection - last seen at #{nanite[1][:timestamp]}")
         end
+        res
       end
     end
 
