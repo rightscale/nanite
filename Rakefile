@@ -10,7 +10,7 @@ end
 require 'rake/clean'
 require 'lib/nanite'
 
-GEM = "nanite"
+GEM = "rightscale-nanite-dev"
 AUTHOR = "Ezra Zygmuntowicz"
 EMAIL = "ezra@engineyard.com"
 HOMEPAGE = "http://github.com/ezmobius/nanite"
