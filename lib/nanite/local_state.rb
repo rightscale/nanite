@@ -28,6 +28,12 @@ module Nanite
       self[name].update(:status => status, :timestamp => Time.now.utc.to_i)
     end
     
+    def update_tags(name, new_tags, obsolete_tags)
+      prev_tags = self[name] && self[name][:tags]
+      updated_tags = (new_tags || []) + (prev_tags || []) - (obsolete_tags || [])
+      self[name].update(:tags => updated_tags.uniq)
+    end
+    
     private
 
     def all(key)
