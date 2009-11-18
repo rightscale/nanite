@@ -191,7 +191,7 @@ module Nanite
           handle_ping(ping)
         rescue Exception => e
           Nanite::Log.error("RECV [ping] #{e.message}")
-          callbacks[:exception].call(e, msg, mapper) rescue nil if callbacks[:exception]
+          callbacks[:exception].call(e, ping, mapper) rescue nil if callbacks[:exception]
         end
       end
       hb_fanout = amq.fanout('heartbeat', :durable => true)

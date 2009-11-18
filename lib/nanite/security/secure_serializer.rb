@@ -28,13 +28,14 @@ module Nanite
     end
 
     # Serialize message and sign it using X.509 certificate
-    def self.dump(obj)
+    def self.dump(obj, encrypt=nil)
       raise "Missing certificate identity" unless @identity
       raise "Missing certificate" unless @cert
       raise "Missing certificate key" unless @key
       raise "Missing certificate store" unless @store || !@encrypt
+      must_encrypt = encrypt.nil? ? @encrypt : encrypt
       json = obj.to_json
-      if @encrypt
+      if must_encrypt
         certs = @store.get_recipients(obj)
         json = EncryptedDocument.new(json, certs).encrypted_data if certs
       end

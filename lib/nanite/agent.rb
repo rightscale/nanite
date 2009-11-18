@@ -5,7 +5,7 @@ module Nanite
     include ConsoleHelper
     include DaemonizeHelper
 
-    attr_reader :identity, :options, :serializer, :dispatcher, :registry, :amq, :tags
+    attr_reader :identity, :options, :serializer, :dispatcher, :registry, :amq, :tags, :callbacks
     attr_accessor :status_proc
 
     DEFAULT_OPTIONS = COMMON_DEFAULT_OPTIONS.merge({
@@ -73,6 +73,10 @@ module Nanite
     # port     : port AMQP broker (or node of interest) runs on,
     #            this defaults to 5672, port used by some widely
     #            used AMQP brokers (RabbitMQ and ZeroMQ)
+    #
+    # callback : Hash of proc objects defining well known callbacks
+    #            Currently only the :exception callback is supported
+    #            This block gets called whenever a packet generates an exception
     #
     # On start Nanite reads config.yml, so it is common to specify
     # options in the YAML file. However, when both Ruby code options
@@ -166,6 +170,8 @@ module Nanite
       File.open(File.expand_path(File.join(@options[:root], 'config.yml')), 'w') do |fd|
         fd.write(YAML.dump(custom_config.merge(:identity => token)))
       end
+
+      @callbacks = options[:callbacks]      
     end
 
     def load_actors
@@ -224,6 +230,7 @@ module Nanite
           receive(serializer.load(msg))
         rescue Exception => e
           Nanite::Log.error("RECV #{e.message}")
+          callbacks[:exception].call(e, msg, self) rescue nil if callbacks[:exception]
         end
       end
     end
