@@ -85,9 +85,11 @@ module Nanite
     # Retrieve nanites implementing given service and exposing given tags
     def nanites_for(from, service, tags)
       keys = tags && tags.dup || []
-      keys << service
+      keys << service if service
+      keys.compact!
+      return {} if keys.empty?
       log_redis_error do
-        @redis.set_intersect(keys.compact)
+        @redis.set_intersect(keys)
       end
     end
 

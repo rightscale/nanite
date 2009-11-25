@@ -16,12 +16,17 @@ module Nanite
 
     def nanites_for(from, service, tags)
       tags = tags.dup.flatten
-      nanites = select { |name, state| state[:services].include?(service) }
-      unless tags.empty?
-        nanites.select { |a, b| !(b[:tags] & tags).empty? }
+      if service
+        nanites = reject { |_, state| !state[:services].include?(service) }
       else
-        nanites
-      end.to_a
+        nanites = self
+      end
+
+      if tags.empty?
+        service ? nanites : {}
+      else
+        nanites.reject { |_, state| (state[:tags] & tags).empty? }
+      end
     end
 
     def update_status(name, status)

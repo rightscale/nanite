@@ -185,7 +185,7 @@ describe Nanite::Cluster do
 
     it "should use targets choosen by all selector (:all)" do
       request = mock("Request", :from => 'from', :target => nil, :selector => :all, :type => "/foo/bar", :tags => [])
-      @cluster.should_receive(:nanites_providing).with('from', '/foo/bar', []).and_return(@all_known_nanites)
+      @cluster.should_receive(:nanites_providing).with('from', '/foo/bar', [], true).and_return(@all_known_nanites)
       
       @cluster.targets_for(request).should == ["nanite-1", "nanite-2", "nanite-3", "nanite-4"]
     end
@@ -232,17 +232,6 @@ describe Nanite::Cluster do
       @cluster.targets_for(request).should == ["nanite-2"]
     end
     
-    it "should ignore timedout nanites - even when loading all nanites" do
-      @all_known_nanites[0][1][:timestamp] = Time.local(2000)
-      
-      nanites = mock("Nanites", :nanites_for => @all_known_nanites)
-      @cluster.should_receive(:nanites).and_return(nanites)
-      
-      request = mock("Request", :from => 'from', :target => nil, :selector => :all, :type => "/foo/bar", :tags => [])
-      
-      @cluster.targets_for(request).should == ["nanite-2", "nanite-4"]
-    end
-
   end # Target Selection
 
 
@@ -515,13 +504,12 @@ describe Nanite::Cluster do
       @target = mock("Target of Request")
       @reaper = mock("Reaper")
       Nanite::Reaper.stub!(:new).and_return(@reaper)
-      @request_without_target = mock("Request", :target => nil, :token => "Token",
-       :reply_to => "Reply To", :from => "From", :persistent => true, :identity => "Identity",
-       :payload => "Payload", :to_s => nil)
-      @request_with_target = mock("Request", :target => "Target", :token => "Token",
-       :reply_to => "Reply To", :from => "From", :persistent => true, :payload => "Payload", :to_s => nil)
+      @request_without_target = Nanite::Request.new('type', 'payload', :target => nil, :token => "Token",
+       :reply_to => "Reply To", :from => "From", :persistent => true)
+      @request_with_target = Nanite::Request.new('type', 'payload', :target => 'Target', :token => "Token",
+       :reply_to => "Reply To", :from => "From", :persistent => true)
       @mapper_with_target = mock("Mapper", :identity => "id")
-      @mapper_without_target = mock("Mapper", :request => false, :identity => @request_without_target.identity)
+      @mapper_without_target = mock("Mapper", :request => false, :identity => "id")
       @cluster_with_target = Nanite::Cluster.new(@amq, 32, "the_identity", @serializer, @mapper_with_target)
       @cluster_without_target = Nanite::Cluster.new(@amq, 32, "the_identity", @serializer, @mapper_without_target)
       Nanite::Cluster.stub!(:mapper).and_return(@mapper)
@@ -534,7 +522,7 @@ describe Nanite::Cluster do
     
     it "should reply back with nil results for requests with no target when offline queue is disabled" do
       @mapper_without_target.should_receive(:send_request).with(@request_without_target, anything())
-      Nanite::Result.should_receive(:new).with(@request_without_target.token, @request_without_target.from, nil, @request_without_target.identity)
+      Nanite::Result.should_receive(:new).with(@request_without_target.token, @request_without_target.from, nil, @mapper_without_target.identity)
       @cluster_without_target.__send__(:handle_request, @request_without_target)
     end
     

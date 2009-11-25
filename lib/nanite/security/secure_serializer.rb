@@ -51,8 +51,8 @@ module Nanite
         raise "Missing certificate key" unless @key || !@encrypt
         data = JSON.load(json)
         sig = Signature.from_data(data['signature'])
-        raise "Failed to check signature for signer #{data['id']}" unless certs.any? { |c| sig.match?(c) }
         certs = @store.get_signer(data['id'])
+        raise "Failed to check signature for signer #{data['id']}" unless certs.any? { |c| sig.match?(c) }
         raise "Could not find a cert for signer #{data['id']}" unless certs
         certs = [ certs ] unless certs.respond_to?(:each)
         jsn = data['data']

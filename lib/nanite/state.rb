@@ -112,10 +112,10 @@ module Nanite
     # Return agents that implement given service and expose
     # all given tags
     def nanites_for(from, service, tags)
-      res = []
+      res = {}
       @tag_store.nanites_for(from, service, tags).each do |nanite_id|
         if nanite = self[nanite_id]
-          res << [nanite_id, nanite]
+          res[nanite_id] = nanite
         end
       end
       res

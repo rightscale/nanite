@@ -215,6 +215,31 @@ module Nanite
     end
   end
 
+  # Tag query: retrieve agent ids with associated tags that match given tags
+  #
+  # Options:
+  # from  is sender identity
+  # tags  list of tags that each agent in the result must match
+  class TagQuery < Packet
+
+    attr_accessor :from, :tags
+
+    def initialize(from, tags, size=nil)
+      @from = from
+      @tags = tags
+      @size = size
+    end
+
+    def self.json_create(o)
+      i = o['data']
+      new(i['from'], i['tags'], o['size'])
+    end
+
+    def to_s(filter=nil)
+      "#{super} <#{token}> #{type} from #{id_to_s(from)}, tags #{tags.inspect}"
+    end
+  end
+
   # packet that means a work result notification sent from actor to mapper
   #
   # from     is sender identity

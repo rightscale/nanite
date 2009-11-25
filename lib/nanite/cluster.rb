@@ -105,7 +105,7 @@ module Nanite
       case request
       when Push
         mapper.send_push(request)
-      else
+      when Request
         intm_handler = lambda do |result, job|
           result = IntermediateMessage.new(request.token, job.request.from, mapper.identity, nil, result)
           forward_response(result, request.persistent)
@@ -120,6 +120,10 @@ module Nanite
         if ok == false
           forward_response(result, request.persistent)
         end
+      when TagQuery
+        results = nanites.nanites_for(from, nil, tags)
+        result = Result.new(request.token, request.from, results, mapper.identity)
+        forward_response(result, request.persistent)
       end
     end
 
@@ -139,7 +143,7 @@ module Nanite
 
     # returns all nanites that provide given service
     def all(from, service, tags=[])
-      nanites_providing(from, service,tags)
+      nanites_providing(from, service, tags, include_timed_out=true)
     end
 
     # returns a random nanite
@@ -168,13 +172,13 @@ module Nanite
     end
 
     # returns all nanites that provide the given service
-    def nanites_providing(from, service, tags)
-      nanites.nanites_for(from, service, tags).delete_if do |nanite|
-        if res = timed_out?(nanite[1])
-          Nanite::Log.debug("Ignoring timed out nanite #{nanite[0]} in target selection - last seen at #{nanite[1][:timestamp]}")
+    def nanites_providing(from, service, tags, include_timed_out=false)
+      nanites.nanites_for(from, service, tags).delete_if do |nanite, info|
+        if res = !include_timed_out && timed_out?(info)
+          Nanite::Log.debug("Ignoring timed out nanite #{nanite} in target selection - last seen at #{info[:timestamp]}")
         end
         res
-      end
+      end.to_a
     end
 
     def setup_queues
