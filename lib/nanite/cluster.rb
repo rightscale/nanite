@@ -18,9 +18,9 @@ module Nanite
     end
 
     # determine which nanites should receive the given request
-    def targets_for(request)
+    def targets_for(request, include_timed_out)
       return [request.target] if request.target
-      __send__(request.selector, request.from, request.type, request.tags).collect {|name, state| name }
+      __send__(request.selector, request, include_timed_out)
     end
 
     # adds nanite to nanites map: key is nanite's identity
@@ -71,7 +71,7 @@ module Nanite
         old_target = request.target
         request.target = target unless target == 'mapper-offline'
         if @security.authorize_request(request)
-          Nanite::Log.info("SEND #{request.to_s([:from, :on_behalf, :tags, :target])}")
+          Nanite::Log.info("SEND #{request.to_s([:from, :scope, :tags, :target])}")
           amq.queue(target).publish(serializer.dump(request), :persistent => request.persistent)
         else
           Nanite::Log.warn("RECV NOT AUTHORIZED #{request.to_s}")
@@ -100,7 +100,7 @@ module Nanite
 
     # forward request coming from agent
     def handle_request(request)
-      Nanite::Log.info("RECV #{request.to_s([:from, :on_behalf, :target, :tags])}") unless Nanite::Log.level == :debug
+      Nanite::Log.info("RECV #{request.to_s([:from, :scope, :target, :tags])}") unless Nanite::Log.level == :debug
       Nanite::Log.debug("RECV #{request.to_s}")
       case request
       when Push
@@ -121,7 +121,7 @@ module Nanite
           forward_response(result, request.persistent)
         end
       when TagQuery
-        results = nanites.nanites_for(from, nil, tags)
+        results = nanites.nanites_for(request)
         result = Result.new(request.token, request.from, results, mapper.identity)
         forward_response(result, request.persistent)
       end
@@ -134,37 +134,38 @@ module Nanite
     end
 
     # returns least loaded nanite that provides given service
-    def least_loaded(from, service, tags=[])
-      candidates = nanites_providing(from, service, tags)
+    def least_loaded(request, include_timed_out)
+      candidates = nanites_providing(request, include_timed_out)
       return [] if candidates.empty?
-
-      [candidates.min { |a,b| a[1][:status] <=> b[1][:status] }]
+      res = candidates.to_a.min { |a, b| a[1][:status] <=> b[1][:status] }
+      [res[0]]
     end
 
     # returns all nanites that provide given service
-    def all(from, service, tags=[])
-      nanites_providing(from, service, tags, include_timed_out=true)
+    # potentially including timed out agents
+    def all(request, include_timed_out)
+      nanites_providing(request, include_timed_out).keys
     end
 
     # returns a random nanite
-    def random(from, service, tags=[])
-      candidates = nanites_providing(from, service,tags)
+    def random(request, include_timed_out)
+      candidates = nanites_providing(request, include_timed_out)
       return [] if candidates.empty?
-
-      [candidates[rand(candidates.size)]]
+      [candidates.keys[rand(candidates.size)]]
     end
 
     # selects next nanite that provides given service
     # using round robin rotation
-    def rr(from, service, tags=[])
+    def rr(request, include_timed_out)
       @last ||= {}
+      service = request.type
       @last[service] ||= 0
-      candidates = nanites_providing(from, service,tags)
+      candidates = nanites_providing(request, include_timed_out)
       return [] if candidates.empty?
       @last[service] = 0 if @last[service] >= candidates.size
-      candidate = candidates[@last[service]]
+      key = candidates.keys[@last[service]]
       @last[service] += 1
-      [candidate]
+      [key]
     end
 
     def timed_out?(nanite)
@@ -172,13 +173,13 @@ module Nanite
     end
 
     # returns all nanites that provide the given service
-    def nanites_providing(from, service, tags, include_timed_out=false)
-      nanites.nanites_for(from, service, tags).delete_if do |nanite, info|
+    def nanites_providing(request, include_timed_out)
+      nanites.nanites_for(request).delete_if do |nanite, info|
         if res = !include_timed_out && timed_out?(info)
           Nanite::Log.debug("Ignoring timed out nanite #{nanite} in target selection - last seen at #{info[:timestamp]}")
         end
         res
-      end.to_a
+      end
     end
 
     def setup_queues

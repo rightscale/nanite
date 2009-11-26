@@ -20,96 +20,57 @@ describe "Nanite::LocalState: " do
 
   end # Class
 
-
-  describe "All services" do
-
-    it "should return empty array if no services are defined" do
-      state = Nanite::LocalState.new({:f => { :foo => 1 }, :b => { :bar => 2 }})
-      state.all_services.should == []
-    end
-
-    it "should return all :services values" do
-      state = Nanite::LocalState.new({:f => { :foo => 1 }, :b => { :services => "b's services" }, :c => { :services => "c's services" }})
-      state.all_services.should include("b's services")
-      state.all_services.should include("c's services")
-    end
-
-    it "should only return one entry for each service" do
-      state = Nanite::LocalState.new({:f => { :services => "services" }, :b => { :services => "services" }})
-      state.all_services.size == 1
-      state.all_services.should == ["services"]
-    end
-
-  end # All services
-
-
-  describe "All tags" do
-
-    it "should return empty array if no tags are defined" do
-      state = Nanite::LocalState.new({:f => { :foo => 1 }, :b => { :bar => 2 }})
-      state.all_tags.should == []
-    end
-
-    it "should return all :tags values" do
-      state = Nanite::LocalState.new({:f => { :foo => 1 }, :b => { :tags => ["a", "b"] }, :c => { :tags => ["c", "d"] }})
-      state.all_tags.should include("a")
-      state.all_tags.should include("b")
-      state.all_tags.should include("c")
-      state.all_tags.should include("d")
-    end
-
-    it "should only return one entry for each tag" do
-      state = Nanite::LocalState.new({:f => { :foo => 1 }, :b => { :tags => ["a", "b"] }, :c => { :tags => ["a", "c"] }})
-      state.all_tags.size == 3
-      state.all_tags.should include("a")
-      state.all_tags.should include("b")
-      state.all_tags.should include("c")
-    end
-
-  end # All tags
-
-
   describe "Nanites lookup" do
+
+    before(:each) do
+      @request = mock('Request', :service => "services", :tags => [])
+      @request_for_b = mock('Request', :service => "b's services", :tags => [])
+    end
 
     it "should find services matching the service criteria if no tags criteria is specified" do
       state = Nanite::LocalState.new({:a => { :services => "a's services" }, :b => { :services => "b's services" }})
-      state.nanites_for(:a, "b's services", []).should == {:b => {:services => "b's services"} }
+      state.nanites_for(@request_for_b).should == {:b => {:services => "b's services"} }
     end
 
     it "should find all services matching the service criteria if no tags criteria is specified" do
       state = Nanite::LocalState.new({:a => { :services => "services" }, :b => { :services => "services" }, :c => { :services => "other services" }})
-      state.nanites_for(:b, "services", []).should include(:a)
-      state.nanites_for(:a, "services", []).should include(:b)
+      state.nanites_for(@request).should include(:a)
+      state.nanites_for(@request).should include(:b)
     end
 
     it "should only services matching the service criteria that also match the tags criteria" do
       state = Nanite::LocalState.new({:a => { :services => "a's services", :tags => ["a_1", "a_2"] }, :b => { :services => "b's services", :tags => ["b_1", "b_2"] }})
-      state.nanites_for(:a, "b's services", []).should == {:b => {:tags=>["b_1", "b_2"], :services=>"b's services"} }
+      state.nanites_for(@request_for_b).should == {:b => {:tags=>["b_1", "b_2"], :services=>"b's services"} }
     end
     
     it "should find all services with matching tags even if the tag order is different" do
       state = Nanite::LocalState.new({'a' => { :services => "services", :tags => ["a_1", "a_2"] }, 'b' => { :services => "services", :tags => ["a_2", "a_1"] }})
-      state.nanites_for(:a, "services", ['a_1', 'a_2']).sort.should == [['a', {:tags=>["a_1", "a_2"], :services=>"services"}], ['b', {:tags=>["a_2", "a_1"], :services=>"services"}]]
+      @request.should_receive(:tags).and_return(['a_1', 'a_2'])
+      state.nanites_for(@request).sort.should == [['a', {:tags=>["a_1", "a_2"], :services=>"services"}], ['b', {:tags=>["a_2", "a_1"], :services=>"services"}]]
     end
 
     it "should also return all tags for services matching the service criteria that also match a single tags criterium" do
       state = Nanite::LocalState.new({:a => { :services => "services", :tags => ["t_1", "t_2"] }})
-      state.nanites_for(:a, "services", ["t_1"]).should == {:a => {:tags=>["t_1", "t_2"], :services=>"services"} }
+      @request.should_receive(:tags).and_return(['t_1'])
+      state.nanites_for(@request).should == {:a => {:tags=>["t_1", "t_2"], :services=>"services"} }
     end
 
     it "should return services matching the service criteria and also match the tags criterium" do
       state = Nanite::LocalState.new({:a => { :services => "a's services", :tags => ["a_1", "a_2"] }, :b => { :services => "b's services", :tags => ["b_1", "b_2"] }})
-      state.nanites_for(:a, "b's services", ["b_1"]).should == {:b => {:tags=>["b_1", "b_2"], :services=>"b's services"} }
+      @request.should_receive(:tags).and_return(['b_1'])
+      state.nanites_for(@request).should == {:b => {:tags=>["b_1", "b_2"], :services=>"b's services"} }
     end
 
     it "should ignore services matching the service criteria and but not the tags criteria" do
       state = Nanite::LocalState.new({:a => { :services => "services", :tags => ["t_1", "t_2"] }, :b => { :services => "services", :tags => ["t_3", "t_4"] }})
-      state.nanites_for(:a, "services", ["t_1"]).should == {:a => {:services => "services", :tags => ["t_1", "t_2"]}}
+      @request.should_receive(:tags).and_return(['t_1'])
+      state.nanites_for(@request).should == {:a => {:services => "services", :tags => ["t_1", "t_2"]}}
     end
 
     it "should lookup services matching the service criteria and and any of the tags criteria" do
       state = Nanite::LocalState.new({'a' => { :services => "services", :tags => ["t_1", "t_2"] }, 'b' => { :services => "services", :tags => ["t_2", "t_3"] }})
-      state.nanites_for(:a, "services", ["t_1", "t_3"]).sort.should == [['a', {:services => "services", :tags => ["t_1", "t_2"]}], ['b', {:services => "services", :tags => ["t_2", "t_3"]}]]
+      @request.should_receive(:tags).and_return(['t_1', 't_3'])
+      state.nanites_for(@request).sort.should == [['a', {:services => "services", :tags => ["t_1", "t_2"]}], ['b', {:services => "services", :tags => ["t_2", "t_3"]}]]
     end
 
   end # Nanites lookup

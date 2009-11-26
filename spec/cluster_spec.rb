@@ -136,102 +136,102 @@ describe Nanite::Cluster do
       Nanite::Reaper.stub!(:new).and_return(@reaper)
       @cluster = Nanite::Cluster.new(@amq, 32, "the_identity", @serializer, @mapper)
       
-      @all_known_nanites = [
-        ['nanite-1', {
+      @all_known_nanites = {
+        'nanite-1' => {
           :status => 0.21,
           :services => ['/foo/bar', '/you/too'],
           :tags => ['a', 'b', 'c'],
           :timestamp => Time.now
-        }],
-        ['nanite-2', {
+        },
+        'nanite-2' => {
           :status => 1.99,
           :services => ['/foo/bar', '/you/too', '/maybe/he'],
           :tags => ['b', 'c', 'e'],
           :timestamp => Time.now
-        }],
-        ['nanite-3', {
+        },
+        'nanite-3' => {
           :status => 0.5,
           :services => ['/foo/bar', '/maybe/he'],
           :tags => [],
           :timestamp => Time.now - 60 * 10
-        }],
-        ['nanite-4', {
+        },
+        'nanite-4' => {
           :status => 2.01,
           :services => ['/foo/bar', '/you/too'],
           :tags => ['a', 'b', 'c'],
           :timestamp => Time.now - 10
-        }],
-      ]
+        }
+      }
     end
 
-    it "should return array containing targets for request" do
-      target = mock("Supplied Target")
-      request = mock("Request", :target => target)
-      @cluster.targets_for(request).should be_instance_of(Array)
+    it "should return hash containing targets for request" do
+      request = mock("Request", :target => nil, :selector => :least_loaded, :tags => [], :service => 'test')
+      @cluster.targets_for(request, false).should be_instance_of(Array)
     end
 
     it "should use target from request" do
       target = mock("Supplied Target")
       request = mock("Request", :target => target)
-      @cluster.targets_for(request).should == [target]
+      @cluster.targets_for(request, false).should == [target]
     end
 
     it "should use targets choosen by least loaded selector (:least_loaded)" do
       request = mock("Request", :from => 'from', :target => nil, :selector => :least_loaded, :type => "/foo/bar", :tags => [])
-      @cluster.should_receive(:nanites_providing).with('from', '/foo/bar', []).and_return(@all_known_nanites)
+      @cluster.should_receive(:nanites_providing).with(request, false).and_return(@all_known_nanites)
       
-      @cluster.targets_for(request).should == ["nanite-1"]
+      @cluster.targets_for(request, false).should == ["nanite-1"]
     end
 
     it "should use targets choosen by all selector (:all)" do
       request = mock("Request", :from => 'from', :target => nil, :selector => :all, :type => "/foo/bar", :tags => [])
-      @cluster.should_receive(:nanites_providing).with('from', '/foo/bar', [], true).and_return(@all_known_nanites)
+      @cluster.should_receive(:nanites_providing).with(request, false).and_return(@all_known_nanites)
       
-      @cluster.targets_for(request).should == ["nanite-1", "nanite-2", "nanite-3", "nanite-4"]
+      @cluster.targets_for(request, false).should == ["nanite-1", "nanite-2", "nanite-3", "nanite-4"]
     end
 
     it "should use targets choosen by random selector (:random)" do
       request = mock("Request", :from => 'from', :target => nil, :selector => :random, :type => "/foo/bar", :tags => [])
-      @cluster.should_receive(:nanites_providing).with('from', '/foo/bar', []).and_return(@all_known_nanites)
+      @cluster.should_receive(:nanites_providing).with(request, false).and_return(@all_known_nanites)
   
       @cluster.should_receive(:rand).with(4).and_return(2)
-      @cluster.targets_for(request).should == ["nanite-3"]
+      @cluster.targets_for(request, false).should == ["nanite-3"]
     end
 
     it "should use targets choosen by round-robin selector (:rr)" do
       request = mock("Request", :from => 'from', :target => nil, :selector => :rr, :type => "/foo/bar", :tags => [])
-      @cluster.stub!(:nanites_providing).with('from', '/foo/bar', []).and_return(@all_known_nanites)
-      
+      @cluster.stub!(:nanites_providing).with(request, false).and_return(@all_known_nanites)
       @cluster.instance_variable_set("@last", {})
-      
-      @cluster.targets_for(request).should == ["nanite-1"]
-      @cluster.targets_for(request).should == ["nanite-2"]
-      @cluster.targets_for(request).should == ["nanite-3"]
-      @cluster.targets_for(request).should == ["nanite-4"]
-      @cluster.targets_for(request).should == ["nanite-1"]
-      @cluster.targets_for(request).should == ["nanite-2"]
-      @cluster.targets_for(request).should == ["nanite-3"]
-      @cluster.targets_for(request).should == ["nanite-4"]
+      2.times { (1..4).each { |i| @cluster.targets_for(request, false).should == ["nanite-#{i}"] } }
     end
     
     it "should pass the tag filter down" do
       request = mock("Request", :from => 'from', :target => nil, :selector => :least_loaded, :type => "/foo/bar", :tags => ['a'])
-      @cluster.should_receive(:nanites_providing).with('from', '/foo/bar', ['a']).and_return(@all_known_nanites)
-  
-      @cluster.targets_for(request).should == ["nanite-1"]
+      @cluster.should_receive(:nanites_providing).with(request, false).and_return(@all_known_nanites)  
+      @cluster.targets_for(request, false).should == ["nanite-1"]
     end
     
-    it "should ignore timedout nanites" do
-      @all_known_nanites[0][1][:timestamp] = Time.local(2000)
-      
+    it "should ignore timedout nanites if asked to" do
+      @all_known_nanites['nanite-1'][:timestamp] = Time.local(2000)
+
       nanites = mock("Nanites", :nanites_for => @all_known_nanites)
       @cluster.should_receive(:nanites).and_return(nanites)
-      
+
       request = mock("Request", :from => nil, :target => nil, :selector => :least_loaded, :type => "/foo/bar", :tags => [])
-      
-      @cluster.targets_for(request).should == ["nanite-2"]
+
+      @cluster.targets_for(request, false).should == ["nanite-2"]
     end
-    
+
+    it "should *not* ignore timedout nanites if asked to" do
+      @all_known_nanites['nanite-1'][:timestamp] = Time.local(2000)
+
+      nanites = mock("Nanites", :nanites_for => @all_known_nanites)
+      @cluster.should_receive(:nanites).and_return(nanites)
+
+      request = mock("Request", :from => nil, :target => nil, :selector => :all, :type => "/foo/bar", :tags => [])
+
+      @cluster.targets_for(request, true).should == ["nanite-1", "nanite-2", "nanite-3", "nanite-4"]
+    end
+
   end # Target Selection
 
 

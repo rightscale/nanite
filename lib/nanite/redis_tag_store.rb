@@ -68,29 +68,13 @@ module Nanite
       @redis.set_members("tg-#{nanite}")
     end
 
-    # Retrieve all agents services
-    def all_services
-      log_redis_error do
-        @redis.set_members('naniteservices')
-      end
-    end
-
-    # Retrieve all agents tags
-    def all_tags
-      log_redis_error do
-        @redis.set_members('nanitetags')
-      end
-    end
-
     # Retrieve nanites implementing given service and exposing given tags
-    def nanites_for(from, service, tags)
-      keys = tags && tags.dup || []
-      keys << service if service
+    def nanites_ids_for(request)
+      keys = request.tags ? request.tags.dup : []
+      keys << request.service if request.service
       keys.compact!
       return {} if keys.empty?
-      log_redis_error do
-        @redis.set_intersect(keys)
-      end
+      log_redis_error { @redis.set_intersect(keys) }
     end
 
     private

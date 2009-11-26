@@ -195,7 +195,7 @@ module Nanite
     def send_request(request, opts = {}, &blk)
       request.reply_to = identity
       intm_handler = opts.delete(:intermediate_handler)
-      targets = cluster.targets_for(request)
+      targets = cluster.targets_for(request, include_timed_out=false)
       if !targets.empty?
         job = job_warden.new_job(request, targets, intm_handler, blk)
         cluster.route(request, job.targets)
@@ -235,7 +235,8 @@ module Nanite
     end
 
     def send_push(push, opts = {})
-      targets = cluster.targets_for(push)
+      include_timed_out = push.selector == :all
+      targets = cluster.targets_for(push, include_timed_out)
       if !targets.empty?
         cluster.route(push, targets)
         true
@@ -270,7 +271,8 @@ module Nanite
       offline_queue = amq.queue('mapper-offline', :durable => true)
       offline_queue.subscribe(:ack => true) do |info, deliverable|
         deliverable = serializer.load(deliverable)
-        targets = cluster.targets_for(deliverable)
+        include_timed_out = deliverable.is_a?(Push) && deliverable.selector == :all
+        targets = cluster.targets_for(deliverable, include_timed_out)
         unless targets.empty?
           info.ack
           if deliverable.kind_of?(Request)

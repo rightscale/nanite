@@ -6,23 +6,16 @@ module Nanite
       end
     end
 
-    def all_services
-      all(:services)
-    end
-
-    def all_tags
-      all(:tags)
-    end
-
-    def nanites_for(from, service, tags)
-      tags = tags.dup.flatten
+    def nanites_for(request)
+      tags = request.tags
+      service = request.service
       if service
         nanites = reject { |_, state| !state[:services].include?(service) }
       else
         nanites = self
       end
 
-      if tags.empty?
+      if tags.nil? || tags.empty?
         service ? nanites : {}
       else
         nanites.reject { |_, state| (state[:tags] & tags).empty? }

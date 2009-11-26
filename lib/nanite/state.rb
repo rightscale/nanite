@@ -66,16 +66,6 @@ module Nanite
       end
     end
 
-    # Return all services exposed by all agents
-    def all_services
-      @tag_store.all_services
-    end
-
-    # Return all tags exposed by all agents
-    def all_tags
-      @tag_store.all_tags
-    end
-
     # Update status and timestamp for given agent
     def update_status(name, status)
       log_redis_error do
@@ -111,9 +101,9 @@ module Nanite
 
     # Return agents that implement given service and expose
     # all given tags
-    def nanites_for(from, service, tags)
+    def nanites_for(request)
       res = {}
-      @tag_store.nanites_for(from, service, tags).each do |nanite_id|
+      @tag_store.nanites_ids_for(request).each do |nanite_id|
         if nanite = self[nanite_id]
           res[nanite_id] = nanite
         end
