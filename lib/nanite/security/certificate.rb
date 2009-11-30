@@ -27,7 +27,9 @@ module Nanite
     
     # Load certificate from file
     def self.load(file)
-      from_data(File.new(file))
+      res = nil
+      File.open(file, 'r') { |f| res = from_data(f) }
+      res
     end
     
     # Initialize with raw certificate
