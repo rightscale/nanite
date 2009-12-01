@@ -74,7 +74,7 @@ module Nanite
           Nanite::Log.info("SEND #{request.to_s([:from, :scope, :tags, :target])}")
           amq.queue(target).publish(serializer.dump(request), :persistent => request.persistent)
         else
-          Nanite::Log.warn("RECV NOT AUTHORIZED #{request.to_s}")
+          Nanite::Log.error("RECV NOT AUTHORIZED #{request.to_s}")
         end
       ensure
         request.target = old_target
