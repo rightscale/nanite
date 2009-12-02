@@ -8,7 +8,7 @@ module Nanite
 
     def nanites_for(request)
       tags = request.tags
-      service = request.service
+      service = request.type
       if service
         nanites = reject { |_, state| !state[:services].include?(service) }
       else
