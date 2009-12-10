@@ -99,7 +99,7 @@ module Nanite
       Log.init(@identity, @options[:log_path])
       Log.level = @options[:log_level] if @options[:log_level]
       @serializer = Serializer.new(@options[:format])
-      @status_proc = lambda { parse_uptime(`uptime 2> /dev/null`) rescue 'no status' }
+      @status_proc ||= lambda { parse_uptime(`uptime 2> /dev/null`) rescue 'no status' }
       pid_file = PidFile.new(@identity, @options)
       pid_file.check
       if @options[:daemonize]
@@ -171,7 +171,8 @@ module Nanite
         fd.write(YAML.dump(custom_config.merge(:identity => token)))
       end
 
-      @callbacks = options[:callbacks]      
+      @callbacks = options[:callbacks]  
+      @status_proc = options[:status_proc]    
     end
 
     def load_actors
