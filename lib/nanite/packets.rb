@@ -219,24 +219,28 @@ module Nanite
   #
   # Options:
   # from  is sender identity
-  # tags  list of tags that each agent in the result must match
+  # opts  Hash of options, two options are supported, at least one must be set:
+  #       :tags is an array of tags defining a query that returned agents tags must match
+  #       :agent_ids is an array of agents whose tags should be returned
   class TagQuery < Packet
 
-    attr_accessor :from, :tags
+    attr_accessor :from, :token, :agent_ids, :tags
 
-    def initialize(from, tags, size=nil)
-      @from = from
-      @tags = tags
-      @size = size
+    def initialize(from, opts, size=nil)
+      @from      = from
+      @token     = opts[:token]
+      @agent_ids = opts[:agent_ids]
+      @tags      = opts[:tags]
+      @size      = size
     end
 
     def self.json_create(o)
       i = o['data']
-      new(i['from'], i['tags'], o['size'])
+      new(i['from'], { :token => i['token'], :agent_ids => i['agent_ids'], :tags => i['tags'] }, o['size'])
     end
 
     def to_s(filter=nil)
-      "#{super} <#{token}> #{type} from #{id_to_s(from)}, tags #{tags.inspect}"
+      "#{super} <#{token}> #{type} from #{id_to_s(from)}, agent_ids #{agent_ids.inspect}, tags #{tags.inspect}"
     end
   end
 

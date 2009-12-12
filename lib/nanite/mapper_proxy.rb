@@ -41,6 +41,7 @@ module Nanite
       amqp.fanout('request', :no_declare => options[:secure]).publish(serializer.dump(request))
     end    
 
+    # Send push to given agent through the mapper
     def push(type, payload = '', opts = {})
       raise "Mapper proxy not initialized" unless identity && options
       push = Push.new(type, payload, opts)
@@ -49,6 +50,16 @@ module Nanite
       push.persistent = opts.key?(:persistent) ? opts[:persistent] : options[:persistent]
       Nanite::Log.info("SEND #{push.to_s([:tags, :target])}")
       amqp.fanout('request', :no_declare => options[:secure]).publish(serializer.dump(push))
+    end
+
+    # Send tag query to mapper
+    def query_tags(opts, &blk)
+      raise "Mapper proxy not initialized" unless identity && options
+      tag_query = TagQuery.new(identity, opts)
+      tag_query.token = Identity.generate
+      pending_requests[tag_query.token] = { :result_handler => blk }
+      Nanite::Log.info("SEND #{tag_query.to_s}")
+      amqp.fanout('request', :no_declare => options[:secure]).publish(serializer.dump(tag_query))
     end
 
     # Update tags registered by mapper for agent

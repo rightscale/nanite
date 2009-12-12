@@ -121,7 +121,17 @@ module Nanite
           forward_response(result, request.persistent)
         end
       when TagQuery
-        results = nanites.nanites_for(request)
+        results = {}
+        results = nanites.nanites_for(request) if request.tags && !request.tags.empty?
+        if request.agent_ids && !request.agent_ids.empty?
+          request.agent_ids.each do |nanite_id|
+            if !results.include?(nanite_id)
+              if nanite = nanites[nanite_id]
+                results[nanite_id] = nanite
+              end
+            end
+          end
+        end
         result = Result.new(request.token, request.from, results, mapper.identity)
         forward_response(result, request.persistent)
       end

@@ -124,6 +124,26 @@ describe "Packet: Request" do
   end
 end
 
+describe "Packet: TagQuery" do
+  it "should dump/load as JSON objects" do
+    packet = Nanite::TagQuery.new('from', :token => '0xdeadbeef', :tags => [ 'one', 'two'] , :agent_ids => [ 'some_agent', 'some_other_agent'])
+    packet2 = JSON.parse(packet.to_json)
+    packet.from.should == packet2.from
+    packet.token.should == packet2.token
+    packet.tags.should == packet2.tags
+    packet.agent_ids.should == packet2.agent_ids
+  end
+
+  it "should dump/load as Marshalled ruby objects" do
+    packet = Nanite::TagQuery.new('from', :token => '0xdeadbeef', :tags => [ 'one', 'two'] , :agent_ids => [ 'some_agent', 'some_other_agent'])
+    packet2 = Marshal.load(Marshal.dump(packet))
+    packet.from.should == packet2.from
+    packet.token.should == packet2.token
+    packet.tags.should == packet2.tags
+    packet.agent_ids.should == packet2.agent_ids
+  end
+end
+
 
 describe "Packet: Result" do
   it "should dump/load as JSON objects" do

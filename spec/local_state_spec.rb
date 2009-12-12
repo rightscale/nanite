@@ -23,8 +23,8 @@ describe "Nanite::LocalState: " do
   describe "Nanites lookup" do
 
     before(:each) do
-      @request = mock('Request', :service => "services", :tags => [])
-      @request_for_b = mock('Request', :service => "b's services", :tags => [])
+      @request = mock('Request', :type => "services", :tags => [])
+      @request_for_b = mock('Request', :type => "b's services", :tags => [])
     end
 
     it "should find services matching the service criteria if no tags criteria is specified" do
