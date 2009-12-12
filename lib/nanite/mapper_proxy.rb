@@ -57,6 +57,7 @@ module Nanite
       raise "Mapper proxy not initialized" unless identity && options
       tag_query = TagQuery.new(identity, opts)
       tag_query.token = Identity.generate
+      tag_query.persistent = opts.key?(:persistent) ? opts[:persistent] : options[:persistent]      
       pending_requests[tag_query.token] = { :result_handler => blk }
       Nanite::Log.info("SEND #{tag_query.to_s}")
       amqp.fanout('request', :no_declare => options[:secure]).publish(serializer.dump(tag_query))

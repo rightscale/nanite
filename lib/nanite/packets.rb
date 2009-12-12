@@ -224,19 +224,22 @@ module Nanite
   #       :agent_ids is an array of agents whose tags should be returned
   class TagQuery < Packet
 
-    attr_accessor :from, :token, :agent_ids, :tags
+    attr_accessor :from, :token, :agent_ids, :tags, :persistent
 
     def initialize(from, opts, size=nil)
-      @from      = from
-      @token     = opts[:token]
-      @agent_ids = opts[:agent_ids]
-      @tags      = opts[:tags]
-      @size      = size
+      @from       = from
+      @token      = opts[:token]
+      @agent_ids  = opts[:agent_ids]
+      @tags       = opts[:tags]
+      @persistent = opts[:persistent]
+      @size       = size
     end
 
     def self.json_create(o)
       i = o['data']
-      new(i['from'], { :token => i['token'], :agent_ids => i['agent_ids'], :tags => i['tags'] }, o['size'])
+      new(i['from'], { :token => i['token'], :agent_ids => i['agent_ids'],
+                       :tags => i['tags'],   :persistent => i['persistent'] },
+                     o['size'])
     end
 
     def to_s(filter=nil)

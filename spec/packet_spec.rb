@@ -132,6 +132,7 @@ describe "Packet: TagQuery" do
     packet.token.should == packet2.token
     packet.tags.should == packet2.tags
     packet.agent_ids.should == packet2.agent_ids
+    packet.persistent.should == packet2.persistent
   end
 
   it "should dump/load as Marshalled ruby objects" do
@@ -141,6 +142,7 @@ describe "Packet: TagQuery" do
     packet.token.should == packet2.token
     packet.tags.should == packet2.tags
     packet.agent_ids.should == packet2.agent_ids
+    packet.persistent.should == packet2.persistent
   end
 end
 
