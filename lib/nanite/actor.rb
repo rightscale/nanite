@@ -57,13 +57,19 @@ module Nanite
     end # ClassMethods     
     
     module InstanceMethods
-      # send nanite request to another agent (through the mapper)
+      # Send nanite request to another agent (through the mapper)
       def request(*args, &blk)
         MapperProxy.instance.request(*args, &blk)
       end
       
+      # Send nanite push to another agent (through the mapper)
       def push(*args)
         MapperProxy.instance.push(*args)
+      end
+
+      # Send nanite tag query to mapper
+      def query_tags(*args, &blk)
+        MapperProxy.instance.query_tags(*args, &blk)
       end
     end # InstanceMethods
     

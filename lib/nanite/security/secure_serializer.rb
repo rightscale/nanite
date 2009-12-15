@@ -45,25 +45,20 @@ module Nanite
     
     # Unserialize data using certificate store
     def self.load(json)
-      begin
-        raise "Missing certificate store" unless @store
-        raise "Missing certificate" unless @cert || !@encrypt
-        raise "Missing certificate key" unless @key || !@encrypt
-        data = JSON.load(json)
-        sig = Signature.from_data(data['signature'])
-        certs = @store.get_signer(data['id'])
-        raise "Could not find a cert for signer #{data['id']}" unless certs
-        certs = [ certs ] unless certs.respond_to?(:any?)
-        raise "Failed to check signature for signer #{data['id']}" unless certs.any? { |c| sig.match?(c) }
-        jsn = data['data']
-        if jsn && @encrypt && data['encrypted']
-          jsn = EncryptedDocument.from_data(jsn).decrypted_data(@key, @cert)
-        end
-        JSON.load(jsn) if jsn
-      rescue Exception => e
-        Nanite::Log.error("Loading of secure packet failed: #{e.message}\n#{e.backtrace.join("\n")}")
-        raise
+      raise "Missing certificate store" unless @store
+      raise "Missing certificate" unless @cert || !@encrypt
+      raise "Missing certificate key" unless @key || !@encrypt
+      data = JSON.load(json)
+      sig = Signature.from_data(data['signature'])
+      certs = @store.get_signer(data['id'])
+      raise "Could not find a cert for signer #{data['id']}" unless certs
+      certs = [ certs ] unless certs.respond_to?(:any?)
+      raise "Failed to check signature for signer #{data['id']}" unless certs.any? { |c| sig.match?(c) }
+      jsn = data['data']
+      if jsn && @encrypt && data['encrypted']
+        jsn = EncryptedDocument.from_data(jsn).decrypted_data(@key, @cert)
       end
+      JSON.load(jsn) if jsn
     end
        
   end
