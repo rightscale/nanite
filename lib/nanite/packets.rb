@@ -243,7 +243,11 @@ module Nanite
     end
 
     def to_s(filter=nil)
-      "#{super} <#{token}> #{type} from #{id_to_s(from)}, agent_ids #{agent_ids.inspect}, tags #{tags.inspect}"
+      log_msg = "#{super} <#{token}>"
+      log_msg += " from #{id_to_s(from)}" if filter.nil? || filter.include?(:from)
+      log_msg += " agent_ids #{agent_ids.inspect}" 
+      log_msg += " tags: #{tags.inspect}" 
+      log_msg
     end
   end
 
