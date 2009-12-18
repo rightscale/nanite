@@ -163,16 +163,18 @@ module Nanite
       if @options[:daemonize]
         @options[:log_path] = (@options[:log_dir] || @options[:root] || Dir.pwd)
       end
-      
+
+      @callbacks = opts[:callbacks]
+      @status_proc = opts[:status_proc]
+
+      # note the return statement in case of identity being known; ensure all
+      # needed configurations occur before the the following line.
       return @identity = "nanite-#{@options[:identity]}" if @options[:identity]
       token = Identity.generate
       @identity = "nanite-#{token}"
       File.open(File.expand_path(File.join(@options[:root], 'config.yml')), 'w') do |fd|
         fd.write(YAML.dump(custom_config.merge(:identity => token)))
       end
-
-      @callbacks = options[:callbacks]  
-      @status_proc = options[:status_proc]    
     end
 
     def load_actors
