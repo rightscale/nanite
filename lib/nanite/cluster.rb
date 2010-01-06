@@ -104,7 +104,9 @@ module Nanite
       Nanite::Log.debug("RECV #{request.to_s}")
       case request
       when Push
-        mapper.send_push(request)
+        if mapper.send_push(request) == false
+          Nanite::Log.info("RECV - No target found for #{request.to_s}")
+        end
       when Request
         intm_handler = lambda do |result, job|
           result = IntermediateMessage.new(request.token, job.request.from, mapper.identity, nil, result)
@@ -118,6 +120,7 @@ module Nanite
         end
 
         if ok == false
+          Nanite::Log.info("RECV - No target found for #{request.to_s}")
           forward_response(result, request.persistent)
         end
       when TagQuery
