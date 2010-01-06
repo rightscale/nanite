@@ -1,14 +1,14 @@
 spec = Gem::Specification.new do |s|
   s.name = 'nanite'
-  s.version = '0.4.1.20'
+  s.version = '0.4.1.22'
   s.platform = Gem::Platform::RUBY
   s.has_rdoc = true
   s.extra_rdoc_files = ['README.rdoc', 'LICENSE', 'TODO']
-  s.summary = 'self assembling fabric of ruby daemons'
+  s.summary = 'Self-assembling fabric of ruby daemons; fork of ezmobius/nanite.'
   s.description = s.summary
-  s.author = 'Ezra Zygmuntowicz'
-  s.email = 'ezra@engineyard.com'
-  s.homepage = 'http://github.com/ezmobius/nanite'
+  s.author = 'RightScale, Inc.'
+  s.email = 'support@rightscale.com'
+  s.homepage = 'http://github.com/rightscale/nanite'
 
   s.bindir       = 'bin'
   s.executables  = [ 'nanite-agent', 'nanite-mapper', 'nanite-admin']

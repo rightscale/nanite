@@ -10,11 +10,11 @@ end
 require 'rake/clean'
 require 'lib/nanite'
 
-GEM = "rightscale-nanite-dev"
-AUTHOR = "Ezra Zygmuntowicz"
-EMAIL = "ezra@engineyard.com"
-HOMEPAGE = "http://github.com/ezmobius/nanite"
-SUMMARY = "self assembling fabric of ruby daemons"
+GEM = "rightscale-nanite"
+AUTHOR = "RightScale, Inc."
+EMAIL = "support@rightscale.com"
+HOMEPAGE = "http://github.com/rightscale/nanite"
+SUMMARY = "Self-assembling fabric of ruby daemons; fork of ezmobius/nanite."
 
 Dir.glob('tasks/*.rake').each { |r| Rake.application.add_import r }
 
