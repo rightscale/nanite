@@ -187,12 +187,17 @@ module Nanite
 
     # returns all nanites that provide the given service
     def nanites_providing(request, include_timed_out)
-      nanites.nanites_for(request).delete_if do |nanite, info|
-        if res = !include_timed_out && timed_out?(info)
-          Nanite::Log.debug("Ignoring timed out nanite #{nanite} in target selection - last seen at #{info[:timestamp]}")
-        end
-        res
-      end
+      # FIXME: Not filtering out results for now to alleviate issue with 
+      # overloaded agents not pinging in a timely fashion
+      # Put that code back once agents behave properly
+      nanites.nanites_for(request)
+
+      # nanites.nanites_for(request).delete_if do |nanite, info|
+      #  if res = !include_timed_out && timed_out?(info)
+      #    Nanite::Log.debug("Ignoring timed out nanite #{nanite} in target selection - last seen at #{info[:timestamp]}")
+      #  end
+      #  res
+      # end
     end
 
     def setup_queues
