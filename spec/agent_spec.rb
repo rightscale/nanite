@@ -17,6 +17,11 @@ describe "Agent:" do
       @agent.options[:daemonize].should == false
     end
 
+    it "for queue is false" do
+      @agent.options.should include(:queue)
+      @agent.options[:queue].should == false
+    end
+
     it "for format is marshal" do
       @agent.options.should include(:format)
       @agent.options[:format].should == :marshal
@@ -102,6 +107,20 @@ describe "Agent:" do
     #   agent.options.should include(:daemonize)
     #   agent.options[:daemonize].should == true
     # end
+
+    it "for queue should default to identity" do
+      agent = Nanite::Agent.start(:identity => "the_identity")
+      agent.options.should include(:queue)
+      agent.options[:queue].should == false
+      agent.queue.should == "nanite-the_identity"
+    end
+
+    it "for queue should override default (false)" do
+      agent = Nanite::Agent.start(:queue => "my_queue")
+      agent.options.should include(:queue)
+      agent.options[:queue].should == "my_queue"
+      agent.queue.should == "my_queue"
+    end
 
     it "for format should override default (marshal)" do
       agent = Nanite::Agent.start(:format => :json)

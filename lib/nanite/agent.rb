@@ -5,11 +5,12 @@ module Nanite
     include ConsoleHelper
     include DaemonizeHelper
 
-    attr_reader :identity, :options, :serializer, :dispatcher, :registry, :amq, :tags, :callbacks
+    attr_reader :identity, :options, :serializer, :dispatcher, :registry, :amq, :tags, :callbacks, :queue
     attr_accessor :status_proc
 
     DEFAULT_OPTIONS = COMMON_DEFAULT_OPTIONS.merge({
       :user => 'nanite',
+      :queue => false,
       :ping_time => 15,
       :default_services => []
     }) unless defined?(DEFAULT_OPTIONS)
@@ -22,6 +23,8 @@ module Nanite
     # Agent options:
     #
     # identity    : identity of this agent, may be any string
+    #
+    # queue       : name of AMPQ queue to use for input; defaults to identity
     #
     # status_proc : a callable object that returns agent load as a string,
     #               defaults to load averages string extracted from `uptime`
@@ -169,9 +172,15 @@ module Nanite
 
       # note the return statement in case of identity being known; ensure all
       # needed configurations occur before the the following line.
-      return @identity = "nanite-#{@options[:identity]}" if @options[:identity]
+      if @options[:identity]
+        @identity = "nanite-#{@options[:identity]}"
+        @queue = @options[:queue] || @identity
+        return @identity
+      end
+
       token = Identity.generate
       @identity = "nanite-#{token}"
+      @queue = @options[:queue] || @identity
       File.open(File.expand_path(File.join(@options[:root], 'config.yml')), 'w') do |fd|
         fd.write(YAML.dump(custom_config.merge(:identity => token)))
       end
@@ -227,7 +236,7 @@ module Nanite
     end
 
     def setup_queue
-      amq.queue(identity, :durable => true).subscribe(:ack => true) do |info, msg|
+      amq.queue(queue, :durable => true).subscribe(:ack => true) do |info, msg|
         begin
           info.ack
           receive(serializer.load(msg))
