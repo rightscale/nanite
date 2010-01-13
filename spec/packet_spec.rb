@@ -193,19 +193,31 @@ end
 
 describe "Packet: Register" do
   it "should dump/load as JSON objects" do
-    packet = Nanite::Register.new('0xdeadbeef', ['/foo/bar', '/nik/qux'], 0.8, ['foo'])
+    packet = Nanite::Register.new('0xdeadbeef', ['/foo/bar', '/nik/qux'], 0.8, ['foo'], '0xdeadbeef')
     packet2 = JSON.parse(packet.to_json)
     packet.identity.should == packet2.identity
     packet.services.should == packet2.services
     packet.status.should == packet2.status
+    packet.queue.should == packet2.queue
   end
 
   it "should dump/load as Marshalled ruby objects" do
-    packet = Nanite::Register.new('0xdeadbeef', ['/foo/bar', '/nik/qux'], 0.8, ['foo'])
+    packet = Nanite::Register.new('0xdeadbeef', ['/foo/bar', '/nik/qux'], 0.8, ['foo'], 'queue')
     packet2 = Marshal.load(Marshal.dump(packet))
     packet.identity.should == packet2.identity
     packet.services.should == packet2.services
     packet.status.should == packet2.status
+    packet.queue.should == packet2.queue
+  end
+
+  it "should set specified queue" do
+    packet = Nanite::Register.new('0xdeadbeef', ['/foo/bar', '/nik/qux'], 0.8, ['foo'], 'queue')
+    packet.queue.should == 'queue'
+  end
+
+  it "should default queue to identity" do
+    packet = Nanite::Register.new('0xdeadbeef', ['/foo/bar', '/nik/qux'], 0.8, ['foo'], nil)
+    packet.queue.should == '0xdeadbeef'
   end
 end
 

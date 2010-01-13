@@ -42,11 +42,12 @@ module Nanite
     def [](nanite)
       log_redis_error do
         status    = @redis[nanite]
+        queue     = @redis["q-#{nanite}"]
         timestamp = @redis["t-#{nanite}"]
         services  = @tag_store.services(nanite)
         tags      = @tag_store.tags(nanite)
         return nil unless status && timestamp && services
-        {:services => services, :status => status, :timestamp => timestamp.to_i, :tags => tags}
+        {:services => services, :status => status, :timestamp => timestamp.to_i, :tags => tags, :queue => queue}
       end
     end
 
@@ -55,6 +56,7 @@ module Nanite
     def []=(nanite, attributes)
       @tag_store.store(nanite, attributes[:services], attributes[:tags])
       update_status(nanite, attributes[:status])
+      set_queue(nanite, attributes[:queue])
     end
 
     # Delete all information related to given agent
@@ -62,7 +64,15 @@ module Nanite
       @tag_store.delete(nanite)
       log_redis_error do
         @redis.delete(nanite)
+        @redis.delete("q-#{nanite}")
         @redis.delete("t-#{nanite}")
+      end
+    end
+
+    # Set queue for given agent
+    def set_queue(name, queue)
+      log_redis_error do
+        @redis["q-#{name}"] = queue
       end
     end
 

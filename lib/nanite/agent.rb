@@ -278,7 +278,7 @@ module Nanite
     end
 
     def advertise_services
-      reg = Register.new(identity, registry.services, status_proc.call, self.tags)
+      reg = Register.new(identity, registry.services, status_proc.call, self.tags, queue)
       Nanite::Log.info("SEND #{reg.to_s}")
       amq.fanout('registration', :no_declare => options[:secure]).publish(serializer.dump(reg))
     end

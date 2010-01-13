@@ -17,10 +17,11 @@ module Nanite
       setup_queues
     end
 
-    # determine which nanites should receive the given request
+    # determine which nanite queues should receive the given request
     def targets_for(request, include_timed_out)
       return [request.target] if request.target
-      __send__(request.selector, request, include_timed_out)
+      nanites = __send__(request.selector, request, include_timed_out)
+      nanites.map { |n| n[1][:queue] }
     end
 
     # adds nanite to nanites map: key is nanite's identity
@@ -31,7 +32,7 @@ module Nanite
       when Register
         if @security.authorize_registration(reg)
           Nanite::Log.info("RECV #{reg.to_s}")
-          nanites[reg.identity] = { :services => reg.services, :status => reg.status, :tags => reg.tags, :timestamp => Time.now.utc.to_i }
+          nanites[reg.identity] = { :services => reg.services, :status => reg.status, :tags => reg.tags, :queue => reg.queue, :timestamp => Time.now.utc.to_i }
           reaper.register(reg.identity, agent_timeout + 1) { nanite_timed_out(reg.identity) }
           callbacks[:register].call(reg.identity, mapper) if callbacks && callbacks[:register]
         else
@@ -151,20 +152,21 @@ module Nanite
       candidates = nanites_providing(request, include_timed_out)
       return [] if candidates.empty?
       res = candidates.to_a.min { |a, b| a[1][:status] <=> b[1][:status] }
-      [res[0]]
+      [res]
     end
 
     # returns all nanites that provide given service
     # potentially including timed out agents
     def all(request, include_timed_out)
-      nanites_providing(request, include_timed_out).keys
+      nanites_providing(request, include_timed_out).to_a
     end
 
     # returns a random nanite
     def random(request, include_timed_out)
       candidates = nanites_providing(request, include_timed_out)
       return [] if candidates.empty?
-      [candidates.keys[rand(candidates.size)]]
+      key = candidates.keys[rand(candidates.size)]
+      [[key, candidates[key]]]
     end
 
     # selects next nanite that provides given service
@@ -178,7 +180,7 @@ module Nanite
       @last[service] = 0 if @last[service] >= candidates.size
       key = candidates.keys[@last[service]]
       @last[service] += 1
-      [key]
+      [[key, candidates[key]]]
     end
 
     def timed_out?(nanite)

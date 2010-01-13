@@ -141,24 +141,28 @@ describe Nanite::Cluster do
           :status => 0.21,
           :services => ['/foo/bar', '/you/too'],
           :tags => ['a', 'b', 'c'],
+          :queue => 'nanite-1',
           :timestamp => Time.now
         },
         'nanite-2' => {
           :status => 1.99,
           :services => ['/foo/bar', '/you/too', '/maybe/he'],
           :tags => ['b', 'c', 'e'],
+          :queue => 'shared-queue',
           :timestamp => Time.now
         },
         'nanite-3' => {
           :status => 0.5,
           :services => ['/foo/bar', '/maybe/he'],
           :tags => [],
+          :queue => 'nanite-3',
           :timestamp => Time.now - 60 * 10
         },
         'nanite-4' => {
           :status => 2.01,
           :services => ['/foo/bar', '/you/too'],
           :tags => ['a', 'b', 'c'],
+          :queue => 'shared-queue',
           :timestamp => Time.now - 10
         }
       }
@@ -186,7 +190,7 @@ describe Nanite::Cluster do
       request = mock("Request", :from => 'from', :target => nil, :selector => :all, :type => "/foo/bar", :tags => [])
       @cluster.should_receive(:nanites_providing).with(request, false).and_return(@all_known_nanites)
       
-      @cluster.targets_for(request, false).should == ["nanite-1", "nanite-2", "nanite-3", "nanite-4"]
+      @cluster.targets_for(request, false).should == ["nanite-1", "shared-queue", "nanite-3", "shared-queue"]
     end
 
     it "should use targets choosen by random selector (:random)" do
@@ -201,12 +205,12 @@ describe Nanite::Cluster do
       request = mock("Request", :from => 'from', :target => nil, :selector => :rr, :type => "/foo/bar", :tags => [])
       @cluster.stub!(:nanites_providing).with(request, false).and_return(@all_known_nanites)
       @cluster.instance_variable_set("@last", {})
-      2.times { (1..4).each { |i| @cluster.targets_for(request, false).should == ["nanite-#{i}"] } }
+      2.times { (1..4).each { |i| @cluster.targets_for(request, false).should == [@all_known_nanites["nanite-#{i}"][:queue]] } }
     end
     
     it "should pass the tag filter down" do
       request = mock("Request", :from => 'from', :target => nil, :selector => :least_loaded, :type => "/foo/bar", :tags => ['a'])
-      @cluster.should_receive(:nanites_providing).with(request, false).and_return(@all_known_nanites)  
+      @cluster.should_receive(:nanites_providing).with(request, false).and_return(@all_known_nanites)
       @cluster.targets_for(request, false).should == ["nanite-1"]
     end
 
@@ -230,7 +234,7 @@ describe Nanite::Cluster do
 
       request = mock("Request", :from => nil, :target => nil, :selector => :all, :type => "/foo/bar", :tags => [])
 
-      @cluster.targets_for(request, true).should == ["nanite-1", "nanite-2", "nanite-3", "nanite-4"]
+      @cluster.targets_for(request, true).should == ["nanite-1", "shared-queue", "nanite-3", "shared-queue"]
     end
 
   end # Target Selection
@@ -248,7 +252,7 @@ describe Nanite::Cluster do
       Nanite::Log.stub!(:info)
       Nanite::Reaper.stub!(:new).and_return(@reaper)
       @cluster = Nanite::Cluster.new(@amq, 32, "the_identity", @serializer, @mapper)
-      @register_packet = Nanite::Register.new("nanite_id", ["the_nanite_services"], "nanite_status",[])
+      @register_packet = Nanite::Register.new("nanite_id", ["the_nanite_services"], "nanite_status",[], "nanite_id")
     end
 
     it "should add the Nanite to the nanites map" do
@@ -347,7 +351,7 @@ describe Nanite::Cluster do
       @amq = mock("AMQueue", :queue => @queue, :fanout => @fanout)
       @serializer = mock("Serializer")
       Nanite::Log.stub!(:info)
-      @register_packet = Nanite::Register.new("nanite_id", ["the_nanite_services"], "nanite_status",[])
+      @register_packet = Nanite::Register.new("nanite_id", ["the_nanite_services"], "nanite_status",[], "nanite_id")
     end
     
     it "should remove the nanite when timed out" do
